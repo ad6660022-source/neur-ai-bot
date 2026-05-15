@@ -32,6 +32,16 @@ async def main():
     dp.include_router(deepseek.router)
     dp.include_router(admin.router)
 
+    # Fallback handler for unhandled messages
+    @dp.message()
+    async def fallback_handler(message):
+        from keyboards import bottom_keyboard
+        await message.answer(
+            "⚠️ Выберите нейросеть из меню, чтобы начать общение.\n"
+            "Используйте кнопку ниже или напишите /menu.",
+            reply_markup=bottom_keyboard()
+        )
+
     logger.info("Bot is running!")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
