@@ -148,8 +148,9 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
                 or_(Subscription.expires_at.is_(None), Subscription.expires_at > now),
             )
             .order_by(Subscription.started_at.desc())
+            .limit(1)
         )
-        sub = result.scalar_one_or_none()
+        sub = result.scalars().first()
 
         if sub:
             changed = False
@@ -236,9 +237,10 @@ async def check_and_increment_usage(
                     or_(Subscription.expires_at.is_(None), Subscription.expires_at > now),
                 )
                 .order_by(Subscription.started_at.desc())
+                .limit(1)
                 .with_for_update()
             )
-            sub = result.scalar_one_or_none()
+            sub = result.scalars().first()
             if not sub:
                 return False, 0, 0, 0, 0
 
