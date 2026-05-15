@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import settings
@@ -35,7 +35,11 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(deepseek.router)
     dp.include_router(admin.router)
 
-    @dp.message()
+    # Fallback MUST be in its own router included last —
+    # a bare @dp.message() fires before sub-router handlers in aiogram 3.x.
+    fallback_router = Router()
+
+    @fallback_router.message()
     async def fallback_handler(message):
         from keyboards import bottom_keyboard
         await message.answer(
@@ -43,6 +47,8 @@ def build_dispatcher() -> Dispatcher:
             "Используй кнопку ниже или напиши /menu.",
             reply_markup=bottom_keyboard(),
         )
+
+    dp.include_router(fallback_router)
 
     return dp
 
