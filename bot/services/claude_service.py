@@ -7,7 +7,7 @@ if settings.ANTHROPIC_BASE_URL:
 
 client = anthropic.AsyncAnthropic(**kwargs)
 
-SYSTEM_PROMPT = (
+BASE_SYSTEM_PROMPT = (
     "Ты полезный ИИ-ассистент Claude в Telegram-боте NEUR AI. "
     "Отвечай на русском языке, если пользователь пишет на русском. "
     "Специализируйся на глубоком анализе, исследованиях и точных ответах. "
@@ -15,16 +15,19 @@ SYSTEM_PROMPT = (
 )
 
 
-async def ask_claude(history: list[dict]) -> tuple[str, int, int]:
-    """Returns (response_text, prompt_tokens, completion_tokens)"""
+async def ask_claude(
+    history: list[dict], mode_prompt: str = ""
+) -> tuple[str, int, int]:
+    system = BASE_SYSTEM_PROMPT
+    if mode_prompt:
+        system = system + " " + mode_prompt
+
     response = await client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=2000,
-        system=SYSTEM_PROMPT,
+        system=system,
         messages=history,
     )
-
     text = response.content[0].text
     usage = response.usage
-
     return text, usage.input_tokens, usage.output_tokens

@@ -14,17 +14,22 @@ class Base(DeclarativeBase):
     pass
 
 
-# Columns to add if they are missing (table, column, definition)
+# (table, column, sql_definition)
 _MIGRATIONS = [
-    # User — referral system
-    ("users", "referral_code",  "VARCHAR(32) UNIQUE"),
+    # Referral system
+    ("users", "referral_code",  "VARCHAR(32)"),
     ("users", "referred_by",    "BIGINT"),
     ("users", "bonus_requests", "INTEGER NOT NULL DEFAULT 0"),
-    # Subscription — daily limits
+    # Daily limits
     ("subscriptions", "daily_chatgpt_used",  "INTEGER NOT NULL DEFAULT 0"),
     ("subscriptions", "daily_claude_used",   "INTEGER NOT NULL DEFAULT 0"),
     ("subscriptions", "daily_deepseek_used", "INTEGER NOT NULL DEFAULT 0"),
     ("subscriptions", "daily_reset_at",      "TIMESTAMP DEFAULT NOW()"),
+    # Trial & notification flags
+    ("subscriptions", "is_trial",          "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("subscriptions", "expiry_notified",   "BOOLEAN NOT NULL DEFAULT FALSE"),
+    # Saved chats mode column (table created by create_all, mode column added just in case)
+    ("saved_chats", "mode", "VARCHAR(20) NOT NULL DEFAULT 'default'"),
 ]
 
 
@@ -41,18 +46,17 @@ async def _run_migrations(conn):
                 await conn.execute(
                     text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {definition}")
                 )
-            logger.info("Migration OK: %s.%s", table, column)
+            logger.info("Migration applied: %s.%s", table, column)
         except Exception as e:
-            # SQLite raises OperationalError when column already exists — that's fine
             msg = str(e).lower()
             if "duplicate column" in msg or "already exists" in msg:
-                pass
+                pass  # already exists, fine
             else:
                 logger.warning("Migration skipped %s.%s: %s", table, column, e)
 
 
 async def init_db():
-    from database.models import User, Subscription, UsageLog  # noqa: F401
+    from database.models import User, Subscription, UsageLog, SavedChat  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await _run_migrations(conn)

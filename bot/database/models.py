@@ -25,6 +25,7 @@ class User(Base):
 
     subscriptions: Mapped[list["Subscription"]] = relationship(back_populates="user")
     usage_logs: Mapped[list["UsageLog"]] = relationship(back_populates="user")
+    saved_chats: Mapped[list["SavedChat"]] = relationship(back_populates="user")
 
 
 class Subscription(Base):
@@ -36,14 +37,16 @@ class Subscription(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_trial: Mapped[bool] = mapped_column(Boolean, default=False)
+    expiry_notified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Monthly usage counters (reset each month)
+    # Monthly usage counters
     chatgpt_used: Mapped[int] = mapped_column(Integer, default=0)
     claude_used: Mapped[int] = mapped_column(Integer, default=0)
     deepseek_used: Mapped[int] = mapped_column(Integer, default=0)
     reset_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Daily usage counters (reset each day)
+    # Daily usage counters
     daily_chatgpt_used: Mapped[int] = mapped_column(Integer, default=0)
     daily_claude_used: Mapped[int] = mapped_column(Integer, default=0)
     daily_deepseek_used: Mapped[int] = mapped_column(Integer, default=0)
@@ -57,10 +60,24 @@ class UsageLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
-    ai_model: Mapped[str] = mapped_column(String(20), nullable=False)  # chatgpt | claude | deepseek
+    ai_model: Mapped[str] = mapped_column(String(20), nullable=False)
     prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     success: Mapped[bool] = mapped_column(Boolean, default=True)
 
     user: Mapped["User"] = relationship(back_populates="usage_logs")
+
+
+class SavedChat(Base):
+    __tablename__ = "saved_chats"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    model: Mapped[str] = mapped_column(String(20), nullable=False)
+    mode: Mapped[str] = mapped_column(String(20), default="default")
+    history: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="saved_chats")

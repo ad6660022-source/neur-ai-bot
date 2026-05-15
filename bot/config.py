@@ -30,10 +30,16 @@ class Settings(BaseSettings):
 
     # Admin
     ADMIN_IDS: str = ""
-    ADMIN_USERNAME: str = "admin"  # without @
+    ADMIN_USERNAME: str = "admin"
 
     # Bot settings
     BOT_NAME: str = "NEUR AI"
+
+    # Webhook (set WEBHOOK_URL on Railway to enable webhook mode)
+    WEBHOOK_URL: Optional[str] = None   # e.g. https://myapp.railway.app
+    WEBHOOK_PATH: str = "/webhook"
+    WEBHOOK_SECRET: str = "neur_ai_secret_token"
+    PORT: int = 8080
 
     @property
     def admin_list(self) -> list[int]:

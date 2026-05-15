@@ -19,16 +19,6 @@ async def cmd_menu(message: Message):
     )
 
 
-@router.callback_query(lambda c: c.data == "back_to_menu")
-async def cb_back_to_menu(call: CallbackQuery):
-    await call.message.edit_text(
-        get_ai_selection_text(),
-        reply_markup=main_menu_keyboard(),
-        parse_mode="HTML",
-    )
-    await call.answer()
-
-
 @router.message(F.text == "⛔ Завершить чат")
 async def cmd_stop_chat(message: Message, state: FSMContext):
     await state.clear()
@@ -43,24 +33,14 @@ async def cmd_stop_chat(message: Message, state: FSMContext):
 async def cb_select_ai(call: CallbackQuery):
     ai_key = call.data.split(":")[1]
     info = AI_DESCRIPTIONS.get(ai_key)
-
     if not info:
         await call.answer("Неизвестная нейросеть", show_alert=True)
         return
 
     text = (
-        f"{info['emoji']} <b>{info['name']}</b> — {info['tagline']}\n\n"
-        f"<b>Модель:</b> {info['model']}\n\n"
+        f"{info['emoji']} <b>{info['name']}</b> ({info['model']}) — {info['tagline']}\n\n"
         f"{info['description']}\n\n"
-        f"<b>🎯 Лучше всего подходит для:</b>\n"
-        + "\n".join(info["best_for"]) +
-        f"\n\n━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"Нажми <b>«Начать общение»</b> чтобы перейти в чат с {info['name']}:"
+        f"Нажми <b>«Начать общение»</b> чтобы выбрать режим и начать чат:"
     )
-
-    await call.message.edit_text(
-        text,
-        reply_markup=ai_info_keyboard(ai_key),
-        parse_mode="HTML",
-    )
+    await call.message.edit_text(text, reply_markup=ai_info_keyboard(ai_key), parse_mode="HTML")
     await call.answer()

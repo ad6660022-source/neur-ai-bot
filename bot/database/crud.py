@@ -1,21 +1,21 @@
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy import select, update, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.models import User, Subscription, UsageLog
+from database.models import User, Subscription, UsageLog, SavedChat
 from database.db import async_session
 
 # ─────────────────────────────────────────────
-#  Plan limits (monthly)
+#  Plan limits
 # ─────────────────────────────────────────────
 PLAN_LIMITS = {
     "free":  {"chatgpt": 5,   "claude": 0,  "deepseek": 10},
     "basic": {"chatgpt": 30,  "claude": 0,  "deepseek": 50},
     "pro":   {"chatgpt": 80,  "claude": 10, "deepseek": 150},
-    "ultra": {"chatgpt": 200, "claude": 30, "deepseek": -1},  # -1 = unlimited
+    "ultra": {"chatgpt": 200, "claude": 30, "deepseek": -1},
 }
 
-# Daily limits
 DAILY_LIMITS = {
     "free":  {"chatgpt": 3,  "claude": 0,  "deepseek": 5},
     "basic": {"chatgpt": 10, "claude": 0,  "deepseek": 20},
@@ -30,7 +30,6 @@ PLAN_PRICES = {
     "ultra": 19.99,
 }
 
-# Telegram Stars prices
 PLAN_STARS = {
     "basic": 399,
     "pro":   799,
@@ -44,7 +43,6 @@ PLAN_EMOJI = {
     "ultra": "💎",
 }
 
-# Bonus requests per referral (credited to referrer)
 REFERRAL_BONUS = 10
 
 
@@ -64,7 +62,6 @@ async def get_or_create_user(
             select(User).where(User.telegram_id == telegram_id)
         )
         user = result.scalar_one_or_none()
-
         if user:
             return user, False
 
@@ -79,30 +76,22 @@ async def get_or_create_user(
         )
         session.add(user)
 
-        sub = Subscription(
-            user_id=telegram_id,
-            plan="free",
-            is_active=True,
-        )
+        # Base free subscription (never expires — fallback after trial)
+        sub = Subscription(user_id=telegram_id, plan="free", is_active=True)
         session.add(sub)
 
         await session.commit()
         await session.refresh(user)
 
-        # Credit referrer bonus
         if referred_by:
-            await _credit_referral_bonus(referred_by, session)
+            await session.execute(
+                update(User)
+                .where(User.telegram_id == referred_by)
+                .values(bonus_requests=User.bonus_requests + REFERRAL_BONUS)
+            )
+            await session.commit()
 
         return user, True
-
-
-async def _credit_referral_bonus(referrer_id: int, session: AsyncSession):
-    await session.execute(
-        update(User)
-        .where(User.telegram_id == referrer_id)
-        .values(bonus_requests=User.bonus_requests + REFERRAL_BONUS)
-    )
-    await session.commit()
 
 
 async def get_user(telegram_id: int) -> Optional[User]:
@@ -129,24 +118,20 @@ async def get_all_user_ids() -> list[int]:
 
 async def ban_user(telegram_id: int) -> bool:
     async with async_session() as session:
-        result = await session.execute(
-            update(User)
-            .where(User.telegram_id == telegram_id)
-            .values(is_banned=True)
+        r = await session.execute(
+            update(User).where(User.telegram_id == telegram_id).values(is_banned=True)
         )
         await session.commit()
-        return result.rowcount > 0
+        return r.rowcount > 0
 
 
 async def unban_user(telegram_id: int) -> bool:
     async with async_session() as session:
-        result = await session.execute(
-            update(User)
-            .where(User.telegram_id == telegram_id)
-            .values(is_banned=False)
+        r = await session.execute(
+            update(User).where(User.telegram_id == telegram_id).values(is_banned=False)
         )
         await session.commit()
-        return result.rowcount > 0
+        return r.rowcount > 0
 
 
 # ─────────────────────────────────────────────
@@ -160,7 +145,6 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
             .where(
                 Subscription.user_id == telegram_id,
                 Subscription.is_active == True,
-                # Bug fix: check expiry (None = free/no expiry)
                 or_(Subscription.expires_at.is_(None), Subscription.expires_at > now),
             )
             .order_by(Subscription.started_at.desc())
@@ -169,14 +153,12 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
 
         if sub:
             changed = False
-            # Auto-reset monthly counters
             if (now - sub.reset_at).days >= 30:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
                 sub.deepseek_used = 0
                 sub.reset_at = now
                 changed = True
-            # Auto-reset daily counters
             if (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
                 sub.daily_claude_used = 0
@@ -197,7 +179,6 @@ async def set_subscription(telegram_id: int, plan: str, days: int = 30) -> Subsc
             .where(Subscription.user_id == telegram_id, Subscription.is_active == True)
             .values(is_active=False)
         )
-
         expires = None if plan == "free" else datetime.utcnow() + timedelta(days=days)
         sub = Subscription(
             user_id=telegram_id,
@@ -213,24 +194,40 @@ async def set_subscription(telegram_id: int, plan: str, days: int = 30) -> Subsc
         return sub
 
 
+async def grant_trial(telegram_id: int) -> Subscription:
+    """
+    Give 3-day Pro trial WITHOUT deactivating the free subscription.
+    When trial expires, get_active_subscription falls back to free automatically.
+    """
+    async with async_session() as session:
+        trial = Subscription(
+            user_id=telegram_id,
+            plan="pro",
+            is_active=True,
+            is_trial=True,
+            expires_at=datetime.utcnow() + timedelta(days=3),
+            reset_at=datetime.utcnow(),
+            daily_reset_at=datetime.utcnow(),
+        )
+        session.add(trial)
+        await session.commit()
+        await session.refresh(trial)
+        return trial
+
+
 # ─────────────────────────────────────────────
-#  Usage tracking  (atomic with SELECT FOR UPDATE)
+#  Usage tracking  (atomic SELECT FOR UPDATE)
 # ─────────────────────────────────────────────
 async def check_and_increment_usage(
     telegram_id: int, model: str
 ) -> tuple[bool, int, int, int, int]:
-    """
-    Returns (allowed, used_monthly, limit_monthly, used_daily, limit_daily).
-    Atomic: uses SELECT FOR UPDATE to prevent race conditions.
-    """
+    """Returns (allowed, used_monthly, limit_monthly, used_daily, limit_daily)."""
     field = f"{model}_used"
     daily_field = f"daily_{model}_used"
 
     async with async_session() as session:
         async with session.begin():
             now = datetime.utcnow()
-
-            # Lock row to prevent race conditions
             result = await session.execute(
                 select(Subscription)
                 .where(
@@ -242,18 +239,15 @@ async def check_and_increment_usage(
                 .with_for_update()
             )
             sub = result.scalar_one_or_none()
-
             if not sub:
                 return False, 0, 0, 0, 0
 
-            # Reset monthly if needed
             if (now - sub.reset_at).days >= 30:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
                 sub.deepseek_used = 0
                 sub.reset_at = now
 
-            # Reset daily if needed
             if (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
                 sub.daily_claude_used = 0
@@ -262,58 +256,148 @@ async def check_and_increment_usage(
 
             monthly_limit = PLAN_LIMITS.get(sub.plan, PLAN_LIMITS["free"])[model]
             daily_limit = DAILY_LIMITS.get(sub.plan, DAILY_LIMITS["free"])[model]
-
             used_monthly = getattr(sub, field, 0)
             used_daily = getattr(sub, daily_field, 0)
 
-            # Model not in plan
             if monthly_limit == 0:
                 return False, used_monthly, monthly_limit, used_daily, daily_limit
-
-            # Check monthly limit
             if monthly_limit != -1 and used_monthly >= monthly_limit:
                 return False, used_monthly, monthly_limit, used_daily, daily_limit
-
-            # Check daily limit
             if daily_limit != -1 and used_daily >= daily_limit:
                 return False, used_monthly, monthly_limit, used_daily, daily_limit
 
-            # Check bonus requests (from referrals)
-            user_result = await session.execute(
+            # Consume bonus requests first (from referrals)
+            user_res = await session.execute(
                 select(User).where(User.telegram_id == telegram_id).with_for_update()
             )
-            user = user_result.scalar_one_or_none()
+            user = user_res.scalar_one_or_none()
             if user and user.bonus_requests > 0:
                 user.bonus_requests -= 1
-                # Don't count against limits, just allow
-                setattr(sub, field, used_monthly + 1)
-                setattr(sub, daily_field, used_daily + 1)
-                return True, used_monthly + 1, monthly_limit, used_daily + 1, daily_limit
 
-            # Increment counters
             setattr(sub, field, used_monthly + 1)
             setattr(sub, daily_field, used_daily + 1)
-
             return True, used_monthly + 1, monthly_limit, used_daily + 1, daily_limit
 
 
 async def log_usage(
-    telegram_id: int,
-    model: str,
-    prompt_tokens: int = 0,
-    completion_tokens: int = 0,
-    success: bool = True,
+    telegram_id: int, model: str,
+    prompt_tokens: int = 0, completion_tokens: int = 0, success: bool = True,
 ):
     async with async_session() as session:
-        log = UsageLog(
+        session.add(UsageLog(
             user_id=telegram_id,
             ai_model=model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             success=success,
-        )
-        session.add(log)
+        ))
         await session.commit()
+
+
+# ─────────────────────────────────────────────
+#  Saved chats
+# ─────────────────────────────────────────────
+async def save_chat(
+    user_id: int, name: str, model: str, mode: str, history: list[dict]
+) -> SavedChat:
+    async with async_session() as session:
+        chat = SavedChat(
+            user_id=user_id,
+            name=name,
+            model=model,
+            mode=mode,
+            history=json.dumps(history, ensure_ascii=False),
+        )
+        session.add(chat)
+        await session.commit()
+        await session.refresh(chat)
+        return chat
+
+
+async def get_saved_chats(user_id: int) -> list[SavedChat]:
+    async with async_session() as session:
+        result = await session.execute(
+            select(SavedChat)
+            .where(SavedChat.user_id == user_id)
+            .order_by(SavedChat.created_at.desc())
+        )
+        return result.scalars().all()
+
+
+async def get_saved_chat(chat_id: int, user_id: int) -> Optional[SavedChat]:
+    async with async_session() as session:
+        result = await session.execute(
+            select(SavedChat).where(
+                SavedChat.id == chat_id,
+                SavedChat.user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def delete_saved_chat(chat_id: int, user_id: int) -> bool:
+    async with async_session() as session:
+        chat = (await session.execute(
+            select(SavedChat).where(SavedChat.id == chat_id, SavedChat.user_id == user_id)
+        )).scalar_one_or_none()
+        if not chat:
+            return False
+        await session.delete(chat)
+        await session.commit()
+        return True
+
+
+async def get_saved_chat_count(user_id: int) -> int:
+    async with async_session() as session:
+        result = await session.execute(
+            select(func.count(SavedChat.id)).where(SavedChat.user_id == user_id)
+        )
+        return result.scalar() or 0
+
+
+# ─────────────────────────────────────────────
+#  Scheduler helpers
+# ─────────────────────────────────────────────
+async def get_expiring_subscriptions(within_days: int = 3) -> list[Subscription]:
+    """Find active paid subs expiring within `within_days` days, not yet notified."""
+    async with async_session() as session:
+        now = datetime.utcnow()
+        deadline = now + timedelta(days=within_days)
+        result = await session.execute(
+            select(Subscription).where(
+                Subscription.is_active == True,
+                Subscription.plan != "free",
+                Subscription.expires_at.isnot(None),
+                Subscription.expires_at > now,
+                Subscription.expires_at <= deadline,
+                Subscription.expiry_notified == False,
+            )
+        )
+        return result.scalars().all()
+
+
+async def mark_expiry_notified(sub_id: int):
+    async with async_session() as session:
+        await session.execute(
+            update(Subscription).where(Subscription.id == sub_id).values(expiry_notified=True)
+        )
+        await session.commit()
+
+
+async def get_expired_trials() -> list[Subscription]:
+    """Find trials that just expired (within last 2 hours), not yet notified."""
+    async with async_session() as session:
+        now = datetime.utcnow()
+        result = await session.execute(
+            select(Subscription).where(
+                Subscription.is_trial == True,
+                Subscription.is_active == True,
+                Subscription.expires_at < now,
+                Subscription.expires_at > now - timedelta(hours=2),
+                Subscription.expiry_notified == False,
+            )
+        )
+        return result.scalars().all()
 
 
 # ─────────────────────────────────────────────
@@ -323,7 +407,6 @@ async def get_stats() -> dict:
     async with async_session() as session:
         user_count = (await session.execute(select(func.count(User.id)))).scalar()
         log_count = (await session.execute(select(func.count(UsageLog.id)))).scalar()
-
         chatgpt_count = (await session.execute(
             select(func.count(UsageLog.id)).where(UsageLog.ai_model == "chatgpt")
         )).scalar()
@@ -333,18 +416,15 @@ async def get_stats() -> dict:
         deepseek_count = (await session.execute(
             select(func.count(UsageLog.id)).where(UsageLog.ai_model == "deepseek")
         )).scalar()
-
-        # Revenue estimate (Stars-based)
-        pro_subs = (await session.execute(
+        paid_subs = (await session.execute(
             select(func.count(Subscription.id))
             .where(Subscription.is_active == True, Subscription.plan != "free")
         )).scalar()
-
         return {
             "users": user_count,
             "total_requests": log_count,
             "chatgpt_requests": chatgpt_count,
             "claude_requests": claude_count,
             "deepseek_requests": deepseek_count,
-            "paid_subs": pro_subs,
+            "paid_subs": paid_subs,
         }
