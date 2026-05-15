@@ -281,6 +281,44 @@ async def check_and_increment_usage(
             return True, used_monthly + 1, monthly_limit, used_daily + 1, daily_limit
 
 
+async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int]:
+    """Returns (allowed, used_today, daily_limit)."""
+    from services.image_service import IMAGE_DAILY_LIMITS
+    async with async_session() as session:
+        async with session.begin():
+            now = datetime.utcnow()
+            result = await session.execute(
+                select(Subscription)
+                .where(
+                    Subscription.user_id == telegram_id,
+                    Subscription.is_active == True,
+                    or_(Subscription.expires_at.is_(None), Subscription.expires_at > now),
+                )
+                .order_by(Subscription.started_at.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            sub = result.scalars().first()
+            if not sub:
+                return False, 0, 0
+
+            if (now - sub.daily_reset_at).total_seconds() >= 86400:
+                sub.daily_chatgpt_used = 0
+                sub.daily_claude_used = 0
+                sub.daily_deepseek_used = 0
+                sub.daily_image_used = 0
+                sub.daily_reset_at = now
+
+            limit = IMAGE_DAILY_LIMITS.get(sub.plan, 0)
+            used = getattr(sub, "daily_image_used", 0)
+
+            if limit == 0 or used >= limit:
+                return False, used, limit
+
+            sub.daily_image_used = used + 1
+            return True, used + 1, limit
+
+
 async def log_usage(
     telegram_id: int, model: str,
     prompt_tokens: int = 0, completion_tokens: int = 0, success: bool = True,

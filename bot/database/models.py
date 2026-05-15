@@ -50,6 +50,7 @@ class Subscription(Base):
     daily_chatgpt_used: Mapped[int] = mapped_column(Integer, default=0)
     daily_claude_used: Mapped[int] = mapped_column(Integer, default=0)
     daily_deepseek_used: Mapped[int] = mapped_column(Integer, default=0)
+    daily_image_used: Mapped[int] = mapped_column(Integer, default=0)
     daily_reset_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="subscriptions")

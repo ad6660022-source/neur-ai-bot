@@ -28,3 +28,7 @@ class AdminBanState(StatesGroup):
 
 class AdminBroadcastState(StatesGroup):
     waiting_message = State()
+
+
+class ImageState(StatesGroup):
+    waiting_prompt = State()

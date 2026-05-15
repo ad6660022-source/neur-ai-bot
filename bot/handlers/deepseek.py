@@ -1,19 +1,19 @@
 from html import escape
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from states import DeepSeekState
 from modes import AI_MODES
 from services.deepseek_service import ask_deepseek
+from services.whisper_service import transcribe_voice
 from database.crud import check_and_increment_usage, log_usage
 from keyboards import chat_controls_keyboard, upgrade_keyboard, back_to_menu_keyboard
 
 router = Router()
 
 
-@router.message(DeepSeekState.chatting, F.text)
-async def handle_deepseek_message(message: Message, state: FSMContext):
+async def _process_deepseek(message: Message, state: FSMContext, text: str):
     user_id = message.from_user.id
     data = await state.get_data()
     mode = data.get("mode", "default")
@@ -42,7 +42,7 @@ async def handle_deepseek_message(message: Message, state: FSMContext):
         return
 
     history = data.get("history", [])
-    history.append({"role": "user", "content": message.text})
+    history.append({"role": "user", "content": text})
 
     await message.bot.send_chat_action(message.chat.id, "typing")
     thinking_msg = await message.answer("🔵 <i>DeepSeek обрабатывает...</i>", parse_mode="HTML")
@@ -79,3 +79,24 @@ async def handle_deepseek_message(message: Message, state: FSMContext):
             f"❌ <b>Ошибка DeepSeek:</b>\n<code>{escape(str(e)[:200])}</code>\n\nПопробуй ещё раз.",
             reply_markup=back_to_menu_keyboard(), parse_mode="HTML",
         )
+
+
+@router.message(DeepSeekState.chatting, F.text)
+async def handle_deepseek_message(message: Message, state: FSMContext):
+    await _process_deepseek(message, state, message.text)
+
+
+@router.message(DeepSeekState.chatting, F.voice)
+async def handle_deepseek_voice(message: Message, state: FSMContext, bot: Bot):
+    thinking_msg = await message.answer("🎙 <i>Распознаю голос...</i>", parse_mode="HTML")
+    try:
+        file = await bot.get_file(message.voice.file_id)
+        file_bytes = await bot.download_file(file.file_path)
+        text = await transcribe_voice(file_bytes.read())
+        await thinking_msg.delete()
+        await message.answer(f"🎙 <i>Распознано:</i> {escape(text)}", parse_mode="HTML")
+    except Exception as e:
+        await thinking_msg.delete()
+        await message.answer(f"❌ Не удалось распознать голос: {escape(str(e)[:100])}")
+        return
+    await _process_deepseek(message, state, text)

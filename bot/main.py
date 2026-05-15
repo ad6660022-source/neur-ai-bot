@@ -8,7 +8,7 @@ from database.db import init_db
 from middleware import BanCheckMiddleware
 from scheduler import setup_scheduler
 from handlers import start, menu, chatgpt, claude, deepseek, subscription, admin
-from handlers import modes, switcher, history
+from handlers import modes, switcher, history, image
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +30,7 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(switcher.router)    # switch_to:X / stop_chat / back_to_menu
     dp.include_router(history.router)     # save_chat / my_chats / load/del chat
     dp.include_router(subscription.router)
+    dp.include_router(image.router)
     dp.include_router(chatgpt.router)
     dp.include_router(claude.router)
     dp.include_router(deepseek.router)

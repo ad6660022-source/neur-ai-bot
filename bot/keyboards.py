@@ -18,7 +18,7 @@ MODEL_NAME  = {"chatgpt": "ChatGPT", "claude": "Claude", "deepseek": "DeepSeek"}
 def bottom_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🤖 Выбрать нейросеть"), KeyboardButton(text="⛔ Завершить чат")],
+            [KeyboardButton(text="🤖 Выбрать нейросеть"), KeyboardButton(text="🎨 Картинка")],
             [KeyboardButton(text="📊 Мой профиль"),       KeyboardButton(text="💳 Тарифы")],
         ],
         resize_keyboard=True,
@@ -40,9 +40,6 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📊 Профиль", callback_data="profile"),
             InlineKeyboardButton(text="💳 Тарифы",  callback_data="plans"),
             InlineKeyboardButton(text="💾 Чаты",    callback_data="my_chats"),
-        ],
-        [
-            InlineKeyboardButton(text="👥 Пригласить друга", callback_data="referral"),
         ],
     ])
 
@@ -111,6 +108,13 @@ def stop_chat_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="⛔ Завершить чат", callback_data="stop_chat"),
             InlineKeyboardButton(text="🏠 Меню",          callback_data="back_to_menu"),
         ],
+    ])
+
+
+def image_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Ещё вариант", callback_data="image_again")],
+        [InlineKeyboardButton(text="🏠 Меню",        callback_data="back_to_menu")],
     ])
 
 
