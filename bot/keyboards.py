@@ -2,6 +2,23 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeybo
 
 
 # ─────────────────────────────────────────────
+#  Bottom Menu (Reply Keyboard)
+# ─────────────────────────────────────────────
+def bottom_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🤖 Выбрать нейросеть"),
+                KeyboardButton(text="⛔ Завершить чат"),
+            ],
+            [
+                KeyboardButton(text="📊 Мой профиль"),
+                KeyboardButton(text="💳 Тарифы"),
+            ],
+        ],
+        resize_keyboard=True,
+        persistent=True,
+    )
 #  Main Menu
 # ─────────────────────────────────────────────
 def main_menu_keyboard() -> InlineKeyboardMarkup:

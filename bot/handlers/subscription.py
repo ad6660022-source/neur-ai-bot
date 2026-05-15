@@ -1,4 +1,4 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
@@ -9,6 +9,7 @@ router = Router()
 
 
 @router.message(Command("plans"))
+@router.message(F.text == "💳 Тарифы")
 async def cmd_plans(message: Message):
     await message.answer(
         get_plans_text(),

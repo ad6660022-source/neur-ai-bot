@@ -1,9 +1,9 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
 
 from database.crud import get_or_create_user, get_active_subscription
-from keyboards import main_menu_keyboard, back_to_menu_keyboard
+from keyboards import main_menu_keyboard, back_to_menu_keyboard, bottom_keyboard
 from texts import get_welcome_text, get_usage_text
 
 router = Router()
@@ -20,6 +20,10 @@ async def cmd_start(message: Message):
     )
 
     await message.answer(
+        "👇 Используй меню ниже для навигации:",
+        reply_markup=bottom_keyboard(),
+    )
+    await message.answer(
         get_welcome_text(message.from_user.first_name),
         reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
@@ -27,6 +31,7 @@ async def cmd_start(message: Message):
 
 
 @router.message(Command("profile"))
+@router.message(F.text == "📊 Мой профиль")
 async def cmd_profile(message: Message):
     sub = await get_active_subscription(message.from_user.id)
     if not sub:
