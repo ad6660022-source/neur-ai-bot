@@ -1,7 +1,11 @@
 import anthropic
 from config import settings
 
-client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+kwargs = {"api_key": settings.ANTHROPIC_API_KEY}
+if settings.ANTHROPIC_BASE_URL:
+    kwargs["base_url"] = settings.ANTHROPIC_BASE_URL
+
+client = anthropic.AsyncAnthropic(**kwargs)
 
 SYSTEM_PROMPT = (
     "Ты полезный ИИ-ассистент Claude в Telegram-боте NEUR AI. "
@@ -14,7 +18,7 @@ SYSTEM_PROMPT = (
 async def ask_claude(history: list[dict]) -> tuple[str, int, int]:
     """Returns (response_text, prompt_tokens, completion_tokens)"""
     response = await client.messages.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-opus-4-7",
         max_tokens=2000,
         system=SYSTEM_PROMPT,
         messages=history,

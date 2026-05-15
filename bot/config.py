@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     # Anthropic / Claude
     ANTHROPIC_API_KEY: str
+    ANTHROPIC_BASE_URL: Optional[str] = None
 
     # Deepseek
     DEEPSEEK_API_KEY: str
