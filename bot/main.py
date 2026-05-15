@@ -5,6 +5,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import settings
 from database.db import init_db
+from middleware import BanCheckMiddleware
 from handlers import start, menu, chatgpt, claude, deepseek, subscription, admin
 
 logging.basicConfig(
@@ -23,6 +24,10 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
+    # Ban check middleware (runs before all handlers)
+    dp.message.middleware(BanCheckMiddleware())
+    dp.callback_query.middleware(BanCheckMiddleware())
+
     # Register all routers
     dp.include_router(start.router)
     dp.include_router(menu.router)
@@ -37,9 +42,9 @@ async def main():
     async def fallback_handler(message):
         from keyboards import bottom_keyboard
         await message.answer(
-            "⚠️ Выберите нейросеть из меню, чтобы начать общение.\n"
-            "Используйте кнопку ниже или напишите /menu.",
-            reply_markup=bottom_keyboard()
+            "⚠️ Выбери нейросеть из меню чтобы начать общение.\n"
+            "Используй кнопку ниже или напиши /menu.",
+            reply_markup=bottom_keyboard(),
         )
 
     logger.info("Bot is running!")

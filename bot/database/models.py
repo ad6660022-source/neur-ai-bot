@@ -18,6 +18,11 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     language_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
 
+    # Referral system
+    referral_code: Mapped[Optional[str]] = mapped_column(String(32), unique=True, nullable=True)
+    referred_by: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    bonus_requests: Mapped[int] = mapped_column(Integer, default=0)
+
     subscriptions: Mapped[list["Subscription"]] = relationship(back_populates="user")
     usage_logs: Mapped[list["UsageLog"]] = relationship(back_populates="user")
 
@@ -37,6 +42,12 @@ class Subscription(Base):
     claude_used: Mapped[int] = mapped_column(Integer, default=0)
     deepseek_used: Mapped[int] = mapped_column(Integer, default=0)
     reset_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Daily usage counters (reset each day)
+    daily_chatgpt_used: Mapped[int] = mapped_column(Integer, default=0)
+    daily_claude_used: Mapped[int] = mapped_column(Integer, default=0)
+    daily_deepseek_used: Mapped[int] = mapped_column(Integer, default=0)
+    daily_reset_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="subscriptions")
 

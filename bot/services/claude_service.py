@@ -18,7 +18,7 @@ SYSTEM_PROMPT = (
 async def ask_claude(history: list[dict]) -> tuple[str, int, int]:
     """Returns (response_text, prompt_tokens, completion_tokens)"""
     response = await client.messages.create(
-        model="claude-opus-4-7",
+        model="claude-sonnet-4-6",
         max_tokens=2000,
         system=SYSTEM_PROMPT,
         messages=history,

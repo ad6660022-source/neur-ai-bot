@@ -1,4 +1,4 @@
-from database.crud import PLAN_LIMITS, PLAN_PRICES, PLAN_EMOJI
+from database.crud import PLAN_LIMITS, DAILY_LIMITS, PLAN_PRICES, PLAN_EMOJI, PLAN_STARS
 
 # ─────────────────────────────────────────────
 #  AI descriptions
@@ -24,7 +24,7 @@ AI_DESCRIPTIONS = {
     },
     "claude": {
         "name": "Claude",
-        "model": "Claude 3.5 Sonnet",
+        "model": "Claude Sonnet 4.6",
         "emoji": "🟣",
         "tagline": "Аналитик и исследователь",
         "description": (
@@ -46,7 +46,7 @@ AI_DESCRIPTIONS = {
         "emoji": "🔵",
         "tagline": "Скоростной и технический",
         "description": (
-            "Передовая модель от китайской команды DeepSeek. "
+            "Передовая модель от DeepSeek. "
             "Специализируется на математике, логике и программировании. "
             "Работает быстро и даёт детальные технические объяснения."
         ),
@@ -69,30 +69,21 @@ def get_welcome_text(first_name: str) -> str:
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"<b>Доступные нейросети:</b>\n\n"
         f"🟢 <b>ChatGPT</b> (GPT-4o) — универсальный помощник\n"
-        f"🟣 <b>Claude</b> (Sonnet 3.5) — аналитик и исследователь\n"
+        f"🟣 <b>Claude</b> (Sonnet 4.6) — аналитик и исследователь\n"
         f"🔵 <b>DeepSeek</b> (V3) — технический и математический\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"Выбери нейросеть в меню и начни общение!\n\n"
-        f"💡 <i>Используй /menu для выбора ИИ\n"
-        f"или /plans для просмотра тарифов</i>"
+        f"🎁 На старте тебе доступны <b>бесплатные запросы</b>.\n"
+        f"Выбери нейросеть и начни общение!\n\n"
+        f"💡 <i>/menu — выбор ИИ · /plans — тарифы</i>"
     )
 
 
 def get_ai_selection_text() -> str:
-    text = "🤖 <b>Выбери нейросеть для работы</b>\n\n"
-    text += "Ниже — краткое описание каждой модели:\n\n"
-
+    lines = ["🤖 <b>Выбери нейросеть для работы</b>\n"]
     for key, info in AI_DESCRIPTIONS.items():
-        text += f"{info['emoji']} <b>{info['name']}</b> — {info['tagline']}\n"
-        text += f"<i>{info['description']}</i>\n"
-        text += "<b>Лучше всего подходит для:</b>\n"
-        for item in info["best_for"]:
-            text += f"  {item}\n"
-        text += "\n"
-
-    text += "━━━━━━━━━━━━━━━━━━━━━━\n"
-    text += "👇 Нажми кнопку, чтобы выбрать ИИ:"
-    return text
+        lines.append(f"{info['emoji']} <b>{info['name']}</b> ({info['model']}) — {info['tagline']}")
+    lines.append("\n👇 Нажми кнопку для выбора:")
+    return "\n".join(lines)
 
 
 def get_plans_text() -> str:
@@ -102,36 +93,40 @@ def get_plans_text() -> str:
         "free": {
             "name": "Бесплатный",
             "price_label": "0 ₽ / мес",
+            "stars_label": None,
             "features": [
-                "🟢 ChatGPT: 5 запросов/мес",
-                "🔵 DeepSeek: 10 запросов/мес",
+                "🟢 ChatGPT: 5/мес · 3/день",
+                "🔵 DeepSeek: 10/мес · 5/день",
                 "🟣 Claude: недоступен",
             ],
         },
         "basic": {
             "name": "Basic",
             "price_label": "~450 ₽ / мес",
+            "stars_label": f"{PLAN_STARS['basic']} ⭐",
             "features": [
-                "🟢 ChatGPT: 30 запросов/мес",
-                "🔵 DeepSeek: 50 запросов/мес",
+                "🟢 ChatGPT: 30/мес · 10/день",
+                "🔵 DeepSeek: 50/мес · 20/день",
                 "🟣 Claude: недоступен",
             ],
         },
         "pro": {
             "name": "Pro",
             "price_label": "~900 ₽ / мес",
+            "stars_label": f"{PLAN_STARS['pro']} ⭐",
             "features": [
-                "🟢 ChatGPT: 80 запросов/мес",
-                "🟣 Claude: 10 запросов/мес",
-                "🔵 DeepSeek: 150 запросов/мес",
+                "🟢 ChatGPT: 80/мес · 30/день",
+                "🟣 Claude: 10/мес · 5/день",
+                "🔵 DeepSeek: 150/мес · 60/день",
             ],
         },
         "ultra": {
             "name": "Ultra",
             "price_label": "~1800 ₽ / мес",
+            "stars_label": f"{PLAN_STARS['ultra']} ⭐",
             "features": [
-                "🟢 ChatGPT: 200 запросов/мес",
-                "🟣 Claude: 30 запросов/мес",
+                "🟢 ChatGPT: 200/мес · 80/день",
+                "🟣 Claude: 30/мес · 15/день",
                 "🔵 DeepSeek: ∞ безлимит",
             ],
         },
@@ -139,36 +134,66 @@ def get_plans_text() -> str:
 
     for plan_key, plan in plans_info.items():
         emoji = PLAN_EMOJI.get(plan_key, "")
-        price = PLAN_PRICES.get(plan_key, 0)
-        text += f"{emoji} <b>{plan['name']}</b> — <b>{plan['price_label']}</b>\n"
+        price = plan["price_label"]
+        stars = f" | {plan['stars_label']}" if plan["stars_label"] else ""
+        text += f"{emoji} <b>{plan['name']}</b> — <b>{price}{stars}</b>\n"
         for feature in plan["features"]:
             text += f"  {feature}\n"
         text += "\n"
 
     text += "━━━━━━━━━━━━━━━━━━━━━━\n"
-    text += "📩 Для активации подписки напиши /buy\n"
-    text += "или обратись к администратору"
+    text += "⭐ <b>Оплата через Telegram Stars</b> — мгновенная активация!\n"
+    text += "Нажми на тариф чтобы перейти к оплате."
     return text
 
 
-def get_usage_text(sub) -> str:
-    from database.crud import PLAN_LIMITS, PLAN_EMOJI
+def get_usage_text(sub, user=None) -> str:
     plan = sub.plan
-    limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    limits_m = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    limits_d = DAILY_LIMITS.get(plan, DAILY_LIMITS["free"])
     emoji = PLAN_EMOJI.get(plan, "")
 
-    def fmt(used, limit):
+    def fmt_m(used, limit):
         if limit == -1:
-            return f"{used} / ∞"
-        return f"{used} / {limit}"
+            return f"{used}/∞"
+        return f"{used}/{limit}"
+
+    def fmt_d(used, limit):
+        if limit == -1:
+            return "∞"
+        if limit == 0:
+            return "—"
+        return f"{used}/{limit}"
+
+    expires_str = ""
+    if sub.expires_at:
+        days_left = (sub.expires_at - __import__("datetime").datetime.utcnow()).days
+        expires_str = f"\n⏳ Осталось дней: <b>{max(0, days_left)}</b>"
+
+    bonus_str = ""
+    if user and user.bonus_requests > 0:
+        bonus_str = f"\n🎁 Бонусных запросов: <b>{user.bonus_requests}</b>"
 
     text = (
         f"📊 <b>Ваш профиль</b>\n\n"
-        f"{emoji} Тариф: <b>{plan.upper()}</b>\n\n"
-        f"<b>Запросы в этом месяце:</b>\n"
-        f"🟢 ChatGPT: {fmt(sub.chatgpt_used, limits['chatgpt'])}\n"
-        f"🟣 Claude:   {fmt(sub.claude_used, limits['claude'])}\n"
-        f"🔵 DeepSeek: {fmt(sub.deepseek_used, limits['deepseek'])}\n\n"
-        f"🔄 Счётчики сбрасываются каждые 30 дней"
+        f"{emoji} Тариф: <b>{plan.upper()}</b>{expires_str}{bonus_str}\n\n"
+        f"<b>Запросы (месяц / сегодня):</b>\n"
+        f"🟢 ChatGPT:  {fmt_m(sub.chatgpt_used, limits_m['chatgpt'])} мес · {fmt_d(sub.daily_chatgpt_used, limits_d['chatgpt'])} день\n"
+        f"🟣 Claude:   {fmt_m(sub.claude_used, limits_m['claude'])} мес · {fmt_d(sub.daily_claude_used, limits_d['claude'])} день\n"
+        f"🔵 DeepSeek: {fmt_m(sub.deepseek_used, limits_m['deepseek'])} мес · {fmt_d(sub.daily_deepseek_used, limits_d['deepseek'])} день\n\n"
+        f"🔄 Счётчики: месяц — раз в 30 дней, день — ежедневно"
     )
     return text
+
+
+def get_referral_text(referral_code: str, bot_username: str, referred_count: int = 0) -> str:
+    link = f"https://t.me/{bot_username}?start=ref_{referral_code}"
+    return (
+        f"👥 <b>Реферальная программа</b>\n\n"
+        f"Приглашай друзей и получай <b>+10 бонусных запросов</b>\n"
+        f"за каждого кто зарегистрируется по твоей ссылке!\n\n"
+        f"🔗 Твоя ссылка:\n"
+        f"<code>{link}</code>\n\n"
+        f"👥 Приглашено друзей: <b>{referred_count}</b>\n\n"
+        f"<i>Бонусы тратятся автоматически перед основным лимитом.</i>"
+    )

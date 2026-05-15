@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     # Admin
     ADMIN_IDS: str = ""
+    ADMIN_USERNAME: str = "admin"  # without @
 
     # Bot settings
     BOT_NAME: str = "NEUR AI"
