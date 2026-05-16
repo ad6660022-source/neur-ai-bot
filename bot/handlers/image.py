@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, URLInputFile
 
 from states import ImageState
-from services.image_service import generate_image, IMAGE_DAILY_LIMITS
+from services.image_service import generate_image, IMAGE_DAILY_LIMITS, IMAGE_MONTHLY_LIMITS
 from database.crud import check_and_increment_image, get_active_subscription
 from keyboards import image_keyboard, main_menu_keyboard, upgrade_keyboard, chat_controls_keyboard
 
@@ -26,12 +26,12 @@ async def cmd_image(event, state: FSMContext):
             await msg.answer(text)
         return
 
-    limit = IMAGE_DAILY_LIMITS.get(sub.plan, 0)
-    if limit == 0:
+    daily_limit = IMAGE_DAILY_LIMITS.get(sub.plan, 0)
+    monthly_limit = IMAGE_MONTHLY_LIMITS.get(sub.plan, 0)
+    if daily_limit == 0 and monthly_limit == 0:
         text = (
             "🎨 <b>Генерация изображений</b>\n\n"
-            "Доступна с тарифа <b>Basic</b> и выше.\n\n"
-            "Free: 1/день · Basic: 3/день · Pro: 10/день · Ultra: 30/день"
+            "Free: 1/месяц · Basic: 10/день · Pro: 10/день · Ultra: 30/день"
         )
         if is_call:
             await event.message.edit_text(text, reply_markup=upgrade_keyboard(), parse_mode="HTML")
@@ -67,15 +67,16 @@ async def handle_image_prompt(message: Message, state: FSMContext):
     data = await state.get_data()
     prompt = message.text.strip()
 
-    allowed, used, limit = await check_and_increment_image(user_id)
+    allowed, used, limit, period = await check_and_increment_image(user_id)
 
     if not allowed:
         # Restore previous state before returning
         await _restore_prev_state(state, data)
+        reset_text = "в следующем месяце" if period == "месяц" else "завтра"
         await message.answer(
-            f"⏰ <b>Дневной лимит изображений исчерпан</b>\n\n"
-            f"Использовано сегодня: {used}/{limit}\n"
-            f"Лимит сбросится завтра.\n\nУлучшите подписку для большего лимита:",
+            f"⏰ <b>Лимит изображений исчерпан</b>\n\n"
+            f"Использовано за {period}: {used}/{limit}\n"
+            f"Лимит сбросится {reset_text}.\n\nУлучшите подписку для большего лимита:",
             reply_markup=upgrade_keyboard(), parse_mode="HTML",
         )
         return
@@ -90,7 +91,7 @@ async def handle_image_prompt(message: Message, state: FSMContext):
             caption=(
                 f"🎨 <b>Готово!</b>\n\n"
                 f"<i>{escape(prompt[:100])}</i>\n\n"
-                f"📊 Использовано сегодня: {used}/{limit}"
+                f"📊 Использовано за {period}: {used}/{limit}"
             ),
             reply_markup=image_keyboard(),
             parse_mode="HTML",

@@ -16,10 +16,10 @@ AI_DESCRIPTIONS = {
     },
     "claude": {
         "name": "Claude", "model": "Sonnet 4.6", "emoji": "🟣",
-        "tagline": "Аналитик и исследователь",
+        "tagline": "Кодинг и технические задачи",
         "description": (
-            "Флагманская модель Anthropic. Известна точностью рассуждений "
-            "и способностью работать с большими объёмами текста."
+            "Флагманская модель Anthropic. Специализируется на программировании, "
+            "отладке кода, архитектуре систем и технических объяснениях."
         ),
     },
     "deepseek": {
@@ -62,8 +62,6 @@ def get_ai_selection_text() -> str:
         lines.append(
             f"{info['emoji']} <b>{info['name']}</b> ({info['model']}) — {info['tagline']}"
         )
-    lines.append("\n<i>После выбора модели выбери режим работы.</i>")
-    lines.append("🎨 Для генерации изображений используй кнопку <b>«Картинка»</b>.")
     lines.append("\n👇 Нажми кнопку для выбора:")
     return "\n".join(lines)
 
@@ -71,10 +69,10 @@ def get_ai_selection_text() -> str:
 def get_plans_text() -> str:
     text = "💳 <b>Тарифные планы NEUR AI</b>\n\n"
     plans_info = {
-        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 5/мес · 3/день", "🔵 DeepSeek: 10/мес · 5/день", "🟣 Claude: недоступен", "🎨 Изображения: 1/день", "💾 Сохранение чатов: нет"]},
-        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 30/мес · 10/день", "🔵 DeepSeek: 50/мес · 20/день", "🟣 Claude: недоступен", "🎨 Изображения: 3/день", "💾 Сохранение чатов: 3"]},
-        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 80/мес · 30/день", "🟣 Claude: 10/мес · 5/день", "🔵 DeepSeek: 150/мес · 60/день", "🎨 Изображения: 10/день", "💾 Сохранение чатов: 20"]},
-        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 200/мес · 80/день", "🟣 Claude: 30/мес · 15/день", "🔵 DeepSeek: ∞ безлимит", "🎨 Изображения: 30/день", "💾 Сохранение чатов: ∞"]},
+        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 50/мес · 10/день", "🔵 DeepSeek: 50/мес · 10/день", "🟣 Claude: недоступен", "🎨 Изображения: 1/месяц", "💾 Сохранение чатов: нет"]},
+        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🔵 DeepSeek: 100/мес · 20/день", "🟣 Claude: недоступен", "🎨 Изображения: 10/день", "💾 Сохранение чатов: 3"]},
+        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 200/мес · 30/день", "🟣 Claude: 30/мес · 5/день", "🔵 DeepSeek: 150/мес · 60/день", "🎨 Изображения: 10/день", "💾 Сохранение чатов: 20"]},
+        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 500/мес · 80/день", "🟣 Claude: 100/мес · 20/день", "🔵 DeepSeek: ∞ безлимит", "🎨 Изображения: 30/день", "💾 Сохранение чатов: ∞"]},
     }
     for plan_key, plan in plans_info.items():
         emoji = PLAN_EMOJI.get(plan_key, "")
@@ -89,11 +87,10 @@ def get_plans_text() -> str:
 
 
 def get_usage_text(sub, user=None) -> str:
-    from services.image_service import IMAGE_DAILY_LIMITS
+    from services.image_service import IMAGE_DAILY_LIMITS, IMAGE_MONTHLY_LIMITS
     plan = sub.plan
     lm = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     ld = DAILY_LIMITS.get(plan, DAILY_LIMITS["free"])
-    img_limit = IMAGE_DAILY_LIMITS.get(plan, 0)
     emoji = PLAN_EMOJI.get(plan, "")
 
     def fmt(used, limit):
@@ -109,8 +106,14 @@ def get_usage_text(sub, user=None) -> str:
         days_left = max(0, (sub.expires_at - datetime.datetime.utcnow()).days)
         expires_str = f"\n⏳ Осталось дней: <b>{days_left}</b>"
 
-    img_used = getattr(sub, "daily_image_used", 0)
-    img_str = f"—" if img_limit == 0 else f"{img_used}/{img_limit}"
+    if plan == "free":
+        img_limit = IMAGE_MONTHLY_LIMITS.get("free", 0)
+        img_used = getattr(sub, "image_used", 0)
+        img_str = f"—" if img_limit == 0 else f"{img_used}/{img_limit} мес"
+    else:
+        img_limit = IMAGE_DAILY_LIMITS.get(plan, 0)
+        img_used = getattr(sub, "daily_image_used", 0)
+        img_str = f"—" if img_limit == 0 else f"{img_used}/{img_limit} день"
 
     return (
         f"📊 <b>Ваш профиль</b>\n\n"
@@ -119,6 +122,6 @@ def get_usage_text(sub, user=None) -> str:
         f"🟢 ChatGPT:  {fmt(sub.chatgpt_used, lm['chatgpt'])} мес · {fmt(sub.daily_chatgpt_used, ld['chatgpt'])} день\n"
         f"🟣 Claude:   {fmt(sub.claude_used, lm['claude'])} мес · {fmt(sub.daily_claude_used, ld['claude'])} день\n"
         f"🔵 DeepSeek: {fmt(sub.deepseek_used, lm['deepseek'])} мес · {fmt(sub.daily_deepseek_used, ld['deepseek'])} день\n"
-        f"🎨 Картинки: {img_str} день\n\n"
+        f"🎨 Картинки: {img_str}\n\n"
         f"🔄 Счётчики: месяц — раз в 30 дней, день — ежедневно"
     )

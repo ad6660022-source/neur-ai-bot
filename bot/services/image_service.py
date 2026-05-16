@@ -3,7 +3,8 @@ from config import settings
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
-IMAGE_DAILY_LIMITS = {"free": 1, "basic": 3, "pro": 10, "ultra": 30}
+IMAGE_DAILY_LIMITS = {"basic": 10, "pro": 10, "ultra": 30}
+IMAGE_MONTHLY_LIMITS = {"free": 1}
 
 
 async def generate_image(prompt: str) -> str:

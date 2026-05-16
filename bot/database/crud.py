@@ -10,17 +10,17 @@ from database.db import async_session
 #  Plan limits
 # ─────────────────────────────────────────────
 PLAN_LIMITS = {
-    "free":  {"chatgpt": 5,   "claude": 0,  "deepseek": 10},
-    "basic": {"chatgpt": 30,  "claude": 0,  "deepseek": 50},
-    "pro":   {"chatgpt": 80,  "claude": 10, "deepseek": 150},
-    "ultra": {"chatgpt": 200, "claude": 30, "deepseek": -1},
+    "free":  {"chatgpt": 50,  "claude": 0,   "deepseek": 50},
+    "basic": {"chatgpt": 100, "claude": 0,   "deepseek": 100},
+    "pro":   {"chatgpt": 200, "claude": 30,  "deepseek": 150},
+    "ultra": {"chatgpt": 500, "claude": 100, "deepseek": -1},
 }
 
 DAILY_LIMITS = {
-    "free":  {"chatgpt": 3,  "claude": 0,  "deepseek": 5},
-    "basic": {"chatgpt": 10, "claude": 0,  "deepseek": 20},
+    "free":  {"chatgpt": 10, "claude": 0,  "deepseek": 10},
+    "basic": {"chatgpt": 20, "claude": 0,  "deepseek": 20},
     "pro":   {"chatgpt": 30, "claude": 5,  "deepseek": 60},
-    "ultra": {"chatgpt": 80, "claude": 15, "deepseek": -1},
+    "ultra": {"chatgpt": 80, "claude": 20, "deepseek": -1},
 }
 
 PLAN_PRICES = {
@@ -31,8 +31,8 @@ PLAN_PRICES = {
 }
 
 PLAN_STARS = {
-    "basic": 399,
-    "pro":   799,
+    "basic": 99,
+    "pro":   499,
     "ultra": 1499,
 }
 
@@ -158,6 +158,7 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
                 sub.deepseek_used = 0
+                sub.image_used = 0
                 sub.reset_at = now
                 changed = True
             if (now - sub.daily_reset_at).total_seconds() >= 86400:
@@ -281,9 +282,9 @@ async def check_and_increment_usage(
             return True, used_monthly + 1, monthly_limit, used_daily + 1, daily_limit
 
 
-async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int]:
-    """Returns (allowed, used_today, daily_limit)."""
-    from services.image_service import IMAGE_DAILY_LIMITS
+async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int, str]:
+    """Returns (allowed, used, limit, period_label)."""
+    from services.image_service import IMAGE_DAILY_LIMITS, IMAGE_MONTHLY_LIMITS
     async with async_session() as session:
         async with session.begin():
             now = datetime.utcnow()
@@ -300,7 +301,14 @@ async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int]:
             )
             sub = result.scalars().first()
             if not sub:
-                return False, 0, 0
+                return False, 0, 0, "день"
+
+            if (now - sub.reset_at).days >= 30:
+                sub.chatgpt_used = 0
+                sub.claude_used = 0
+                sub.deepseek_used = 0
+                sub.image_used = 0
+                sub.reset_at = now
 
             if (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
@@ -309,14 +317,20 @@ async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int]:
                 sub.daily_image_used = 0
                 sub.daily_reset_at = now
 
-            limit = IMAGE_DAILY_LIMITS.get(sub.plan, 0)
-            used = getattr(sub, "daily_image_used", 0)
-
-            if limit == 0 or used >= limit:
-                return False, used, limit
-
-            sub.daily_image_used = used + 1
-            return True, used + 1, limit
+            if sub.plan == "free":
+                limit = IMAGE_MONTHLY_LIMITS.get("free", 0)
+                used = getattr(sub, "image_used", 0)
+                if limit == 0 or used >= limit:
+                    return False, used, limit, "месяц"
+                sub.image_used = used + 1
+                return True, used + 1, limit, "месяц"
+            else:
+                limit = IMAGE_DAILY_LIMITS.get(sub.plan, 0)
+                used = getattr(sub, "daily_image_used", 0)
+                if limit == 0 or used >= limit:
+                    return False, used, limit, "день"
+                sub.daily_image_used = used + 1
+                return True, used + 1, limit, "день"
 
 
 async def log_usage(

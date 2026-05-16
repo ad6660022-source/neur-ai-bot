@@ -30,8 +30,9 @@ _MIGRATIONS = [
     ("subscriptions", "expiry_notified",   "BOOLEAN NOT NULL DEFAULT FALSE"),
     # Saved chats mode column (table created by create_all, mode column added just in case)
     ("saved_chats", "mode", "VARCHAR(20) NOT NULL DEFAULT 'default'"),
-    # Image generation daily counter
+    # Image generation counters
     ("subscriptions", "daily_image_used", "INTEGER NOT NULL DEFAULT 0"),
+    ("subscriptions", "image_used",       "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 
