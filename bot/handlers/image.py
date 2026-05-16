@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery, URLInputFile
 from states import ImageState
 from services.image_service import generate_image, IMAGE_DAILY_LIMITS
 from database.crud import check_and_increment_image, get_active_subscription
-from keyboards import image_keyboard, main_menu_keyboard, upgrade_keyboard
+from keyboards import image_keyboard, main_menu_keyboard, upgrade_keyboard, chat_controls_keyboard
 
 router = Router()
 
@@ -17,7 +17,6 @@ async def cmd_image(event, state: FSMContext):
     is_call = isinstance(event, CallbackQuery)
     msg = event.message if is_call else event
 
-    # Check access
     sub = await get_active_subscription(event.from_user.id)
     if not sub:
         text = "⚠️ Сначала напиши /start"
@@ -32,7 +31,7 @@ async def cmd_image(event, state: FSMContext):
         text = (
             "🎨 <b>Генерация изображений</b>\n\n"
             "Доступна с тарифа <b>Basic</b> и выше.\n\n"
-            "Free: нет · Basic: 3/день · Pro: 10/день · Ultra: 30/день"
+            "Free: 1/день · Basic: 3/день · Pro: 10/день · Ultra: 30/день"
         )
         if is_call:
             await event.message.edit_text(text, reply_markup=upgrade_keyboard(), parse_mode="HTML")
@@ -41,7 +40,14 @@ async def cmd_image(event, state: FSMContext):
             await msg.answer(text, reply_markup=upgrade_keyboard(), parse_mode="HTML")
         return
 
+    # Save current chat state so we can restore it after image generation
+    prev_state = await state.get_state()
+    prev_data = await state.get_data()
     await state.set_state(ImageState.waiting_prompt)
+    await state.update_data(
+        _prev_state=prev_state,
+        _prev_data=prev_data,
+    )
 
     prompt_msg = (
         "🎨 <b>Генерация изображения</b>\n\n"
@@ -58,12 +64,14 @@ async def cmd_image(event, state: FSMContext):
 @router.message(ImageState.waiting_prompt, F.text)
 async def handle_image_prompt(message: Message, state: FSMContext):
     user_id = message.from_user.id
+    data = await state.get_data()
     prompt = message.text.strip()
 
     allowed, used, limit = await check_and_increment_image(user_id)
 
     if not allowed:
-        await state.clear()
+        # Restore previous state before returning
+        await _restore_prev_state(state, data)
         await message.answer(
             f"⏰ <b>Дневной лимит изображений исчерпан</b>\n\n"
             f"Использовано сегодня: {used}/{limit}\n"
@@ -71,8 +79,6 @@ async def handle_image_prompt(message: Message, state: FSMContext):
             reply_markup=upgrade_keyboard(), parse_mode="HTML",
         )
         return
-
-    await state.update_data(last_prompt=prompt)
 
     thinking_msg = await message.answer("🎨 <i>Генерирую изображение... (~15 сек)</i>", parse_mode="HTML")
 
@@ -96,4 +102,15 @@ async def handle_image_prompt(message: Message, state: FSMContext):
             reply_markup=main_menu_keyboard(), parse_mode="HTML",
         )
 
-    await state.clear()
+    # Always restore the previous chat state
+    await _restore_prev_state(state, data)
+
+
+async def _restore_prev_state(state: FSMContext, data: dict):
+    prev_state = data.get("_prev_state")
+    prev_data = data.get("_prev_data") or {}
+    if prev_state:
+        await state.set_state(prev_state)
+        await state.set_data(prev_data)
+    else:
+        await state.clear()

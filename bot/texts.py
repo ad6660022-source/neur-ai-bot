@@ -71,7 +71,7 @@ def get_ai_selection_text() -> str:
 def get_plans_text() -> str:
     text = "💳 <b>Тарифные планы NEUR AI</b>\n\n"
     plans_info = {
-        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 5/мес · 3/день", "🔵 DeepSeek: 10/мес · 5/день", "🟣 Claude: недоступен", "🎨 Изображения: нет", "💾 Сохранение чатов: нет"]},
+        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 5/мес · 3/день", "🔵 DeepSeek: 10/мес · 5/день", "🟣 Claude: недоступен", "🎨 Изображения: 1/день", "💾 Сохранение чатов: нет"]},
         "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 30/мес · 10/день", "🔵 DeepSeek: 50/мес · 20/день", "🟣 Claude: недоступен", "🎨 Изображения: 3/день", "💾 Сохранение чатов: 3"]},
         "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 80/мес · 30/день", "🟣 Claude: 10/мес · 5/день", "🔵 DeepSeek: 150/мес · 60/день", "🎨 Изображения: 10/день", "💾 Сохранение чатов: 20"]},
         "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 200/мес · 80/день", "🟣 Claude: 30/мес · 15/день", "🔵 DeepSeek: ∞ безлимит", "🎨 Изображения: 30/день", "💾 Сохранение чатов: ∞"]},

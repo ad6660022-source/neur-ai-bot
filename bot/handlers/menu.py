@@ -1,6 +1,5 @@
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from keyboards import main_menu_keyboard, ai_info_keyboard
@@ -18,15 +17,6 @@ async def cmd_menu(message: Message):
         parse_mode="HTML",
     )
 
-
-@router.message(F.text == "⛔ Завершить чат")
-async def cmd_stop_chat(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer(
-        "✅ Чат завершён.\n\nВыбери нейросеть или раздел:",
-        reply_markup=main_menu_keyboard(),
-        parse_mode="HTML",
-    )
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("ai:"))
