@@ -2,11 +2,22 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from keyboards import main_menu_keyboard, ai_info_keyboard
+from keyboards import main_menu_keyboard, ai_info_keyboard, bottom_keyboard
 from texts import get_ai_selection_text, AI_DESCRIPTIONS
 from database.crud import get_monthly_user_count
 
 router = Router()
+
+
+@router.message(F.text == "🎨 Картинка")
+async def cmd_image_disabled(message: Message):
+    await message.answer(
+        "🎨 <b>Генерация изображений временно недоступна</b>\n\n"
+        "Мы работаем над этой функцией — она появится в ближайшее время.\n\n"
+        "Пока что попробуй ChatGPT или Claude 👇",
+        reply_markup=bottom_keyboard(),
+        parse_mode="HTML",
+    )
 
 
 @router.message(Command("menu"))
