@@ -25,7 +25,7 @@ async def cmd_start(message: Message):
     monthly_users = await get_monthly_user_count()
     await message.answer(
         get_ai_selection_text(monthly_users),
-        reply_markup=bottom_keyboard(),
+        reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
     )
 
