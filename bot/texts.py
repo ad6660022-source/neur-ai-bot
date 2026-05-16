@@ -74,10 +74,10 @@ def get_ai_selection_text(monthly_users: int = 0) -> str:
 def get_plans_text() -> str:
     text = "💳 <b>Тарифные планы NEUR AI</b>\n\n"
     plans_info = {
-        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 20/мес · 5/день", "🔵 DeepSeek: 30/мес · 10/день", "🟣 Claude: недоступен", "🎨 Изображения: 1/месяц", "💾 Сохранение чатов: нет"]},
-        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🔵 DeepSeek: 150/мес · 40/день", "🟣 Claude: недоступен", "🎨 Изображения: 40/мес · 3/день", "💾 Сохранение чатов: 5"]},
-        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 250/мес · 40/день", "🟣 Claude: 60/мес · 10/день", "🔵 DeepSeek: 400/мес · 80/день", "🎨 Изображения: 200/мес · 10/день", "💾 Сохранение чатов: 30"]},
-        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 700/мес · 100/день", "🟣 Claude: 180/мес · 25/день", "🔵 DeepSeek: 2000/мес · 200/день", "🎨 Изображения: 450/мес · 25/день", "💾 Сохранение чатов: ∞"]},
+        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 20/мес · 5/день", "🔵 DeepSeek: 30/мес · 10/день", "🟣 Claude: недоступен", "💾 Сохранение чатов: нет"]},
+        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🔵 DeepSeek: 150/мес · 40/день", "🟣 Claude: недоступен", "💾 Сохранение чатов: 5"]},
+        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 250/мес · 40/день", "🟣 Claude: 60/мес · 10/день", "🔵 DeepSeek: 400/мес · 80/день", "💾 Сохранение чатов: 30"]},
+        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 700/мес · 100/день", "🟣 Claude: 180/мес · 25/день", "🔵 DeepSeek: 2000/мес · 200/день", "💾 Сохранение чатов: ∞"]},
     }
     for plan_key, plan in plans_info.items():
         emoji = PLAN_EMOJI.get(plan_key, "")
