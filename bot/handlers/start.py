@@ -2,9 +2,9 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
 
-from database.crud import get_or_create_user, get_active_subscription, get_user, grant_trial
+from database.crud import get_or_create_user, get_active_subscription, get_user, grant_trial, get_monthly_user_count
 from keyboards import main_menu_keyboard, back_to_menu_keyboard, bottom_keyboard
-from texts import get_welcome_text, get_usage_text
+from texts import get_ai_selection_text, get_usage_text
 
 router = Router()
 
@@ -22,15 +22,10 @@ async def cmd_start(message: Message):
     if is_new:
         await grant_trial(message.from_user.id)
 
+    monthly_users = await get_monthly_user_count()
     await message.answer(
-        "👇 Используй меню ниже для навигации:",
+        get_ai_selection_text(monthly_users),
         reply_markup=bottom_keyboard(),
-    )
-
-    welcome = get_welcome_text(message.from_user.first_name, is_new=is_new)
-    await message.answer(
-        welcome,
-        reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
     )
 

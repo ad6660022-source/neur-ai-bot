@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery
 
 from keyboards import main_menu_keyboard, ai_info_keyboard
 from texts import get_ai_selection_text, AI_DESCRIPTIONS
+from database.crud import get_monthly_user_count
 
 router = Router()
 
@@ -11,8 +12,9 @@ router = Router()
 @router.message(Command("menu"))
 @router.message(F.text == "🤖 Выбрать нейросеть")
 async def cmd_menu(message: Message):
+    monthly_users = await get_monthly_user_count()
     await message.answer(
-        get_ai_selection_text(),
+        get_ai_selection_text(monthly_users),
         reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
     )

@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery
 from modes import AI_MODES
 from states import ChatGPTState, ClaudeState, DeepSeekState
 from keyboards import chat_controls_keyboard, back_to_menu_keyboard, main_menu_keyboard
+from database.crud import get_monthly_user_count
 
 router = Router()
 
@@ -53,8 +54,9 @@ async def cb_switch_model(call: CallbackQuery, state: FSMContext):
 async def cb_stop_chat(call: CallbackQuery, state: FSMContext):
     await state.clear()
     from texts import get_ai_selection_text
+    monthly_users = await get_monthly_user_count()
     await call.message.edit_text(
-        get_ai_selection_text(),
+        get_ai_selection_text(monthly_users),
         reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
     )
@@ -64,8 +66,9 @@ async def cb_stop_chat(call: CallbackQuery, state: FSMContext):
 @router.callback_query(lambda c: c.data == "back_to_menu")
 async def cb_back_to_menu(call: CallbackQuery):
     from texts import get_ai_selection_text
+    monthly_users = await get_monthly_user_count()
     await call.message.edit_text(
-        get_ai_selection_text(),
+        get_ai_selection_text(monthly_users),
         reply_markup=main_menu_keyboard(),
         parse_mode="HTML",
     )

@@ -457,6 +457,16 @@ async def get_expired_trials() -> list[Subscription]:
 # ─────────────────────────────────────────────
 #  Admin statistics
 # ─────────────────────────────────────────────
+async def get_monthly_user_count() -> int:
+    async with async_session() as session:
+        now = datetime.utcnow()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        result = await session.execute(
+            select(func.count(User.id)).where(User.created_at >= month_start)
+        )
+        return result.scalar() or 0
+
+
 async def get_stats() -> dict:
     async with async_session() as session:
         user_count = (await session.execute(select(func.count(User.id)))).scalar()

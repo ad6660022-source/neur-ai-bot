@@ -45,7 +45,7 @@ def get_welcome_text(first_name: str, is_new: bool = False) -> str:
         f"{trial_block}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🟢 <b>ChatGPT</b> (GPT-4o) — универсальный\n"
-        f"🟣 <b>Claude</b> (Sonnet 4.6) — аналитик\n"
+        f"🟣 <b>Claude</b> (Sonnet 4.6) — кодинг\n"
         f"🔵 <b>DeepSeek</b> (V3) — технический\n"
         f"🎨 <b>DALL-E 3</b> — генерация изображений\n\n"
         f"🎙 Голосовые сообщения поддерживаются\n"
@@ -56,12 +56,17 @@ def get_welcome_text(first_name: str, is_new: bool = False) -> str:
     )
 
 
-def get_ai_selection_text() -> str:
+def get_ai_selection_text(monthly_users: int = 0) -> str:
     lines = ["🤖 <b>Выбери нейросеть и режим работы</b>\n"]
     for key, info in AI_DESCRIPTIONS.items():
         lines.append(
             f"{info['emoji']} <b>{info['name']}</b> ({info['model']}) — {info['tagline']}"
         )
+    lines.append("\n🎙 Голосовые сообщения поддерживаются")
+    lines.append("💾 Сохраняй и загружай диалоги")
+    lines.append("🔄 Переключай нейросети прямо в чате")
+    if monthly_users > 0:
+        lines.append(f"\n👥 <b>{monthly_users}</b> пользователей в этом месяце")
     lines.append("\n👇 Нажми кнопку для выбора:")
     return "\n".join(lines)
 
