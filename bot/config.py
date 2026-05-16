@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str
     ANTHROPIC_BASE_URL: Optional[str] = None
 
-    # Deepseek
-    DEEPSEEK_API_KEY: str
+    # Mini App
+    WEBAPP_URL: Optional[str] = None  # e.g. https://myapp.railway.app/app/
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./neur_ai.db"

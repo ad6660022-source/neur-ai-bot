@@ -4,6 +4,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
     LabeledPrice,
+    WebAppInfo,
 )
 from database.crud import PLAN_STARS
 from modes import AI_MODES
@@ -31,7 +32,8 @@ def bottom_keyboard() -> ReplyKeyboardMarkup:
 #  Main menu
 # ─────────────────────────────────────────────
 def main_menu_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+    from config import settings
+    rows = [
         [
             InlineKeyboardButton(text="🟢 ChatGPT", callback_data="ai:chatgpt"),
             InlineKeyboardButton(text="🟣 Claude",  callback_data="ai:claude"),
@@ -41,7 +43,12 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="💳 Тарифы",  callback_data="plans"),
             InlineKeyboardButton(text="💾 Чаты",    callback_data="my_chats"),
         ],
-    ])
+    ]
+    if settings.WEBAPP_URL:
+        rows.append([
+            InlineKeyboardButton(text="🌐 Открыть Mini App", web_app=WebAppInfo(url=settings.WEBAPP_URL)),
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def channel_bonus_keyboard() -> InlineKeyboardMarkup:

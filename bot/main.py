@@ -35,8 +35,6 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(claude.router)
     dp.include_router(admin.router)
 
-    # Fallback MUST be in its own router included last —
-    # a bare @dp.message() fires before sub-router handlers in aiogram 3.x.
     fallback_router = Router()
 
     @fallback_router.message()
@@ -49,39 +47,7 @@ def build_dispatcher() -> Dispatcher:
         )
 
     dp.include_router(fallback_router)
-
     return dp
-
-
-async def run_polling(bot: Bot, dp: Dispatcher):
-    await bot.delete_webhook(drop_pending_updates=True)
-    logger.info("Running in POLLING mode")
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-
-
-async def run_webhook(bot: Bot, dp: Dispatcher):
-    from aiohttp import web
-    from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-
-    webhook_url = f"{settings.WEBHOOK_URL}{settings.WEBHOOK_PATH}"
-    await bot.set_webhook(url=webhook_url, secret_token=settings.WEBHOOK_SECRET)
-    logger.info("Webhook set: %s", webhook_url)
-
-    app = web.Application()
-    SimpleRequestHandler(
-        dispatcher=dp,
-        bot=bot,
-        secret_token=settings.WEBHOOK_SECRET,
-    ).register(app, path=settings.WEBHOOK_PATH)
-    setup_application(app, dp, bot=bot)
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", settings.PORT)
-    await site.start()
-    logger.info("Running in WEBHOOK mode on port %d", settings.PORT)
-
-    await asyncio.Event().wait()  # run forever
 
 
 async def main():
@@ -90,13 +56,36 @@ async def main():
 
     bot = Bot(token=settings.BOT_TOKEN)
     dp = build_dispatcher()
-
     setup_scheduler(bot)
 
+    from aiohttp import web
+    from webapp_api import setup_webapp_routes
+
+    app = web.Application()
+    setup_webapp_routes(app, bot)
+
     if settings.WEBHOOK_URL:
-        await run_webhook(bot, dp)
+        from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+        webhook_url = f"{settings.WEBHOOK_URL}{settings.WEBHOOK_PATH}"
+        await bot.set_webhook(url=webhook_url, secret_token=settings.WEBHOOK_SECRET)
+        logger.info("Webhook set: %s", webhook_url)
+        SimpleRequestHandler(
+            dispatcher=dp, bot=bot, secret_token=settings.WEBHOOK_SECRET
+        ).register(app, path=settings.WEBHOOK_PATH)
+        setup_application(app, dp, bot=bot)
     else:
-        await run_polling(bot, dp)
+        logger.info("Running in POLLING mode")
+        asyncio.create_task(
+            dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        )
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", settings.PORT)
+    await site.start()
+    logger.info("Server running on port %d", settings.PORT)
+
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
