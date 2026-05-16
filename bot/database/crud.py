@@ -10,17 +10,17 @@ from database.db import async_session
 #  Plan limits
 # ─────────────────────────────────────────────
 PLAN_LIMITS = {
-    "free":  {"chatgpt": 50,  "claude": 0,   "deepseek": 50},
-    "basic": {"chatgpt": 100, "claude": 0,   "deepseek": 100},
-    "pro":   {"chatgpt": 200, "claude": 30,  "deepseek": 150},
-    "ultra": {"chatgpt": 500, "claude": 100, "deepseek": -1},
+    "free":  {"chatgpt": 20,  "claude": 0,   "deepseek": 30},
+    "basic": {"chatgpt": 100, "claude": 0,   "deepseek": 150},
+    "pro":   {"chatgpt": 250, "claude": 60,  "deepseek": 400},
+    "ultra": {"chatgpt": 700, "claude": 180, "deepseek": 2000},
 }
 
 DAILY_LIMITS = {
-    "free":  {"chatgpt": 10, "claude": 0,  "deepseek": 10},
-    "basic": {"chatgpt": 20, "claude": 0,  "deepseek": 20},
-    "pro":   {"chatgpt": 30, "claude": 5,  "deepseek": 60},
-    "ultra": {"chatgpt": 80, "claude": 20, "deepseek": -1},
+    "free":  {"chatgpt": 5,   "claude": 0,  "deepseek": 10},
+    "basic": {"chatgpt": 20,  "claude": 0,  "deepseek": 40},
+    "pro":   {"chatgpt": 40,  "claude": 10, "deepseek": 80},
+    "ultra": {"chatgpt": 100, "claude": 25, "deepseek": 200},
 }
 
 PLAN_PRICES = {
@@ -32,8 +32,8 @@ PLAN_PRICES = {
 
 PLAN_STARS = {
     "basic": 99,
-    "pro":   499,
-    "ultra": 1499,
+    "pro":   399,
+    "ultra": 999,
 }
 
 PLAN_EMOJI = {

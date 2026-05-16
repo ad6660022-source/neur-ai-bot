@@ -9,6 +9,7 @@ from services.openai_service import ask_chatgpt, ask_chatgpt_with_image
 from services.whisper_service import transcribe_voice
 from database.crud import check_and_increment_usage, log_usage
 from keyboards import chat_controls_keyboard, upgrade_keyboard, back_to_menu_keyboard
+from utils import strip_markdown
 
 router = Router()
 
@@ -68,7 +69,7 @@ async def _process_chatgpt(message: Message, state: FSMContext, text: str):
 
         await thinking_msg.delete()
         await message.answer(
-            escape(response) + footer,
+            escape(strip_markdown(response)) + footer,
             reply_markup=chat_controls_keyboard("chatgpt", mode),
             parse_mode="HTML",
         )
@@ -130,7 +131,7 @@ async def handle_chatgpt_photo(message: Message, state: FSMContext, bot: Bot):
         ld = "∞" if limit_d == -1 else str(limit_d)
         footer = f"\n\n<i>🟢 {used_m}/{lm} мес · {used_d}/{ld} день</i>"
         await thinking_msg.delete()
-        await message.answer(escape(response) + footer, reply_markup=chat_controls_keyboard("chatgpt", mode), parse_mode="HTML")
+        await message.answer(escape(strip_markdown(response)) + footer, reply_markup=chat_controls_keyboard("chatgpt", mode), parse_mode="HTML")
     except Exception as e:
         await log_usage(user_id, "chatgpt", 0, 0, False)
         await thinking_msg.delete()

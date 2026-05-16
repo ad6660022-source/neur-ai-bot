@@ -9,6 +9,7 @@ from services.deepseek_service import ask_deepseek
 from services.whisper_service import transcribe_voice
 from database.crud import check_and_increment_usage, log_usage
 from keyboards import chat_controls_keyboard, upgrade_keyboard, back_to_menu_keyboard
+from utils import strip_markdown
 
 router = Router()
 
@@ -68,7 +69,7 @@ async def _process_deepseek(message: Message, state: FSMContext, text: str):
 
         await thinking_msg.delete()
         await message.answer(
-            escape(response) + footer,
+            escape(strip_markdown(response)) + footer,
             reply_markup=chat_controls_keyboard("deepseek", mode),
             parse_mode="HTML",
         )

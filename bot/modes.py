@@ -33,7 +33,7 @@ AI_MODES = {
 # Saved chat limits per plan
 SAVED_CHAT_LIMITS = {
     "free":  0,
-    "basic": 3,
-    "pro":   20,
+    "basic": 5,
+    "pro":   30,
     "ultra": -1,  # unlimited
 }

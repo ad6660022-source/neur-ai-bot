@@ -74,10 +74,10 @@ def get_ai_selection_text(monthly_users: int = 0) -> str:
 def get_plans_text() -> str:
     text = "💳 <b>Тарифные планы NEUR AI</b>\n\n"
     plans_info = {
-        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 50/мес · 10/день", "🔵 DeepSeek: 50/мес · 10/день", "🟣 Claude: недоступен", "🎨 Изображения: 1/месяц", "💾 Сохранение чатов: нет"]},
-        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🔵 DeepSeek: 100/мес · 20/день", "🟣 Claude: недоступен", "🎨 Изображения: 10/день", "💾 Сохранение чатов: 3"]},
-        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 200/мес · 30/день", "🟣 Claude: 30/мес · 5/день", "🔵 DeepSeek: 150/мес · 60/день", "🎨 Изображения: 10/день", "💾 Сохранение чатов: 20"]},
-        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 500/мес · 80/день", "🟣 Claude: 100/мес · 20/день", "🔵 DeepSeek: ∞ безлимит", "🎨 Изображения: 30/день", "💾 Сохранение чатов: ∞"]},
+        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 20/мес · 5/день", "🔵 DeepSeek: 30/мес · 10/день", "🟣 Claude: недоступен", "🎨 Изображения: 1/месяц", "💾 Сохранение чатов: нет"]},
+        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🔵 DeepSeek: 150/мес · 40/день", "🟣 Claude: недоступен", "🎨 Изображения: 40/мес · 3/день", "💾 Сохранение чатов: 5"]},
+        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 250/мес · 40/день", "🟣 Claude: 60/мес · 10/день", "🔵 DeepSeek: 400/мес · 80/день", "🎨 Изображения: 200/мес · 10/день", "💾 Сохранение чатов: 30"]},
+        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 700/мес · 100/день", "🟣 Claude: 180/мес · 25/день", "🔵 DeepSeek: 2000/мес · 200/день", "🎨 Изображения: 450/мес · 25/день", "💾 Сохранение чатов: ∞"]},
     }
     for plan_key, plan in plans_info.items():
         emoji = PLAN_EMOJI.get(plan_key, "")
@@ -87,12 +87,11 @@ def get_plans_text() -> str:
         text += "\n"
     text += "━━━━━━━━━━━━━━━━━━━━━━\n"
     text += "⭐ Оплата через Telegram Stars — мгновенная активация!\n"
-    text += "Нажми на тариф для деталей и оплаты."
+    text += "Выбирай тариф и начинай пользоваться NEUR AI."
     return text
 
 
 def get_usage_text(sub, user=None) -> str:
-    from services.image_service import IMAGE_DAILY_LIMITS, IMAGE_MONTHLY_LIMITS
     plan = sub.plan
     lm = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     ld = DAILY_LIMITS.get(plan, DAILY_LIMITS["free"])
@@ -111,22 +110,12 @@ def get_usage_text(sub, user=None) -> str:
         days_left = max(0, (sub.expires_at - datetime.datetime.utcnow()).days)
         expires_str = f"\n⏳ Осталось дней: <b>{days_left}</b>"
 
-    if plan == "free":
-        img_limit = IMAGE_MONTHLY_LIMITS.get("free", 0)
-        img_used = getattr(sub, "image_used", 0)
-        img_str = f"—" if img_limit == 0 else f"{img_used}/{img_limit} мес"
-    else:
-        img_limit = IMAGE_DAILY_LIMITS.get(plan, 0)
-        img_used = getattr(sub, "daily_image_used", 0)
-        img_str = f"—" if img_limit == 0 else f"{img_used}/{img_limit} день"
-
     return (
         f"📊 <b>Ваш профиль</b>\n\n"
         f"{emoji} Тариф: <b>{plan.upper()}</b>{badge}{expires_str}\n\n"
         f"<b>Запросы (месяц / сегодня):</b>\n"
         f"🟢 ChatGPT:  {fmt(sub.chatgpt_used, lm['chatgpt'])} мес · {fmt(sub.daily_chatgpt_used, ld['chatgpt'])} день\n"
         f"🟣 Claude:   {fmt(sub.claude_used, lm['claude'])} мес · {fmt(sub.daily_claude_used, ld['claude'])} день\n"
-        f"🔵 DeepSeek: {fmt(sub.deepseek_used, lm['deepseek'])} мес · {fmt(sub.daily_deepseek_used, ld['deepseek'])} день\n"
-        f"🎨 Картинки: {img_str}\n\n"
+        f"🔵 DeepSeek: {fmt(sub.deepseek_used, lm['deepseek'])} мес · {fmt(sub.daily_deepseek_used, ld['deepseek'])} день\n\n"
         f"🔄 Счётчики: месяц — раз в 30 дней, день — ежедневно"
     )

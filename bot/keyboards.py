@@ -18,7 +18,7 @@ MODEL_NAME  = {"chatgpt": "ChatGPT", "claude": "Claude", "deepseek": "DeepSeek"}
 def bottom_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🤖 Выбрать нейросеть"), KeyboardButton(text="🎨 Картинка")],
+            [KeyboardButton(text="🤖 Выбрать нейросеть")],
             [KeyboardButton(text="📊 Мой профиль"),       KeyboardButton(text="💳 Тарифы")],
         ],
         resize_keyboard=True,
