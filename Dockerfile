@@ -1,23 +1,24 @@
-# Dockerfile for NEUR AI Telegram Bot
+# Stage 1: build React Mini App
+FROM node:20-alpine AS webapp-build
+WORKDIR /webapp
+COPY webapp/package*.json ./
+RUN npm install
+COPY webapp/ ./
+RUN npm run build
 
+# Stage 2: Python bot
 FROM python:3.11-slim
-
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy bot source
 COPY bot/ ./bot/
 
-# Set working directory to bot
-WORKDIR /app/bot
+# Copy built React app into expected location
+COPY --from=webapp-build /webapp/dist ./webapp/dist
 
-# Run the bot
+WORKDIR /app/bot
 CMD ["python", "main.py"]
