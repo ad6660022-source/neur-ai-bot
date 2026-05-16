@@ -154,17 +154,23 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
 
         if sub:
             changed = False
-            if (now - sub.reset_at).days >= 30:
+            if sub.reset_at and (now - sub.reset_at).days >= 30:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
                 sub.deepseek_used = 0
                 sub.image_used = 0
                 sub.reset_at = now
                 changed = True
-            if (now - sub.daily_reset_at).total_seconds() >= 86400:
+            elif not sub.reset_at:
+                sub.reset_at = now
+                changed = True
+            if sub.daily_reset_at and (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
                 sub.daily_claude_used = 0
                 sub.daily_deepseek_used = 0
+                sub.daily_reset_at = now
+                changed = True
+            elif not sub.daily_reset_at:
                 sub.daily_reset_at = now
                 changed = True
             if changed:
@@ -303,18 +309,22 @@ async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int, s
             if not sub:
                 return False, 0, 0, "день"
 
-            if (now - sub.reset_at).days >= 30:
+            if sub.reset_at and (now - sub.reset_at).days >= 30:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
                 sub.deepseek_used = 0
                 sub.image_used = 0
                 sub.reset_at = now
+            elif not sub.reset_at:
+                sub.reset_at = now
 
-            if (now - sub.daily_reset_at).total_seconds() >= 86400:
+            if sub.daily_reset_at and (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
                 sub.daily_claude_used = 0
                 sub.daily_deepseek_used = 0
                 sub.daily_image_used = 0
+                sub.daily_reset_at = now
+            elif not sub.daily_reset_at:
                 sub.daily_reset_at = now
 
             if sub.plan == "free":

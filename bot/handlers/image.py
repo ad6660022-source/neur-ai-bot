@@ -66,26 +66,26 @@ async def handle_image_prompt(message: Message, state: FSMContext):
     user_id = message.from_user.id
     data = await state.get_data()
     prompt = message.text.strip()
-
-    allowed, used, limit, period = await check_and_increment_image(user_id)
-
-    if not allowed:
-        # Restore previous state before returning
-        await _restore_prev_state(state, data)
-        reset_text = "в следующем месяце" if period == "месяц" else "завтра"
-        await message.answer(
-            f"⏰ <b>Лимит изображений исчерпан</b>\n\n"
-            f"Использовано за {period}: {used}/{limit}\n"
-            f"Лимит сбросится {reset_text}.\n\nУлучшите подписку для большего лимита:",
-            reply_markup=upgrade_keyboard(), parse_mode="HTML",
-        )
-        return
-
-    thinking_msg = await message.answer("🎨 <i>Генерирую изображение... (~15 сек)</i>", parse_mode="HTML")
+    thinking_msg = None
 
     try:
+        allowed, used, limit, period = await check_and_increment_image(user_id)
+
+        if not allowed:
+            await _restore_prev_state(state, data)
+            reset_text = "в следующем месяце" if period == "месяц" else "завтра"
+            await message.answer(
+                f"⏰ <b>Лимит изображений исчерпан</b>\n\n"
+                f"Использовано за {period}: {used}/{limit}\n"
+                f"Лимит сбросится {reset_text}.\n\nУлучшите подписку для большего лимита:",
+                reply_markup=upgrade_keyboard(), parse_mode="HTML",
+            )
+            return
+
+        thinking_msg = await message.answer("🎨 <i>Генерирую изображение... (~15 сек)</i>", parse_mode="HTML")
         url = await generate_image(prompt)
         await thinking_msg.delete()
+        thinking_msg = None
         await message.answer_photo(
             photo=URLInputFile(url),
             caption=(
@@ -97,14 +97,14 @@ async def handle_image_prompt(message: Message, state: FSMContext):
             parse_mode="HTML",
         )
     except Exception as e:
-        await thinking_msg.delete()
+        if thinking_msg:
+            await thinking_msg.delete()
         await message.answer(
             f"❌ <b>Ошибка генерации:</b>\n<code>{escape(str(e)[:200])}</code>\n\nПопробуй другой запрос.",
             reply_markup=main_menu_keyboard(), parse_mode="HTML",
         )
-
-    # Always restore the previous chat state
-    await _restore_prev_state(state, data)
+    finally:
+        await _restore_prev_state(state, data)
 
 
 async def _restore_prev_state(state: FSMContext, data: dict):
