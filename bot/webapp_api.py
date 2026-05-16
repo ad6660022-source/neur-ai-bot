@@ -258,7 +258,7 @@ async def api_invoice(request: web.Request):
             currency="XTR",
             prices=[LabeledPrice(label=f"NEUR AI {name}", amount=stars)],
         )
-        return _ok({"invoice_url": link})
+        return _ok({"invoice_link": link})
     except Exception as e:
         logger.error("Invoice error: %s", e)
         return _err(str(e)[:200], 500)

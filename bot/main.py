@@ -75,9 +75,15 @@ async def main():
         setup_application(app, dp, bot=bot)
     else:
         logger.info("Running in POLLING mode")
-        asyncio.create_task(
-            dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-        )
+        await bot.delete_webhook(drop_pending_updates=True)
+
+        async def _poll():
+            try:
+                await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+            except Exception as exc:
+                logger.critical("Polling crashed: %s", exc, exc_info=True)
+
+        asyncio.create_task(_poll())
 
     runner = web.AppRunner(app)
     await runner.setup()
