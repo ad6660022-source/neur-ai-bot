@@ -1,17 +1,21 @@
 from html import escape
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 from states import ChatGPTState
 from modes import AI_MODES
 from services.openai_service import ask_chatgpt, ask_chatgpt_with_image
 from services.whisper_service import transcribe_voice
-from database.crud import check_and_increment_usage, log_usage
-from keyboards import chat_controls_keyboard, upgrade_keyboard, back_to_menu_keyboard
-from utils import strip_markdown
+from database.crud import check_and_increment_usage, log_usage, check_and_grant_channel_bonus
+from keyboards import chat_controls_keyboard, upgrade_keyboard, back_to_menu_keyboard, channel_bonus_keyboard
+from utils import markdown_to_html
 
 router = Router()
+
+_BONUS_TEXT = (
+    "\n\n📢 <b>Подпишись на @neur_ai_pub</b> и получи <b>+10 запросов</b> бесплатно!"
+)
 
 
 async def _process_chatgpt(message: Message, state: FSMContext, text: str):
@@ -31,14 +35,14 @@ async def _process_chatgpt(message: Message, state: FSMContext, text: str):
             await message.answer(
                 f"⏰ <b>Дневной лимит ChatGPT исчерпан</b>\n\n"
                 f"Использовано сегодня: {used_d}/{limit_d}\n"
-                f"Лимит сбросится завтра.\n\nУлучшите подписку:",
-                reply_markup=upgrade_keyboard(), parse_mode="HTML",
+                f"Лимит сбросится завтра.{_BONUS_TEXT}",
+                reply_markup=channel_bonus_keyboard(), parse_mode="HTML",
             )
         else:
             await message.answer(
                 f"⚠️ <b>Месячный лимит ChatGPT исчерпан</b>\n\n"
-                f"Использовано: {used_m}/{limit_m} запросов.\n\nУлучшите подписку:",
-                reply_markup=upgrade_keyboard(), parse_mode="HTML",
+                f"Использовано: {used_m}/{limit_m} запросов.{_BONUS_TEXT}",
+                reply_markup=channel_bonus_keyboard(), parse_mode="HTML",
             )
         return
 
@@ -69,7 +73,7 @@ async def _process_chatgpt(message: Message, state: FSMContext, text: str):
 
         await thinking_msg.delete()
         await message.answer(
-            escape(strip_markdown(response)) + footer,
+            markdown_to_html(response) + footer,
             reply_markup=chat_controls_keyboard("chatgpt", mode),
             parse_mode="HTML",
         )
@@ -80,6 +84,35 @@ async def _process_chatgpt(message: Message, state: FSMContext, text: str):
             f"❌ <b>Ошибка ChatGPT:</b>\n<code>{escape(str(e)[:200])}</code>\n\nПопробуй ещё раз.",
             reply_markup=back_to_menu_keyboard(), parse_mode="HTML",
         )
+
+
+@router.callback_query(lambda c: c.data == "check_channel_sub")
+async def cb_check_channel_sub(call: CallbackQuery, bot: Bot):
+    user_id = call.from_user.id
+    try:
+        member = await bot.get_chat_member(chat_id="@neur_ai_pub", user_id=user_id)
+        is_sub = member.status in ("member", "administrator", "creator", "restricted")
+    except Exception:
+        await call.answer("❌ Не удалось проверить подписку. Попробуй позже.", show_alert=True)
+        return
+
+    if not is_sub:
+        await call.answer("❌ Ты ещё не подписан на @neur_ai_pub", show_alert=True)
+        return
+
+    granted = await check_and_grant_channel_bonus(user_id)
+    if granted:
+        await call.answer("✅ +10 запросов ChatGPT начислено!", show_alert=True)
+        await call.message.edit_text(
+            "🎉 <b>Бонус получен!</b>\n\n"
+            "+10 запросов ChatGPT добавлено к твоему балансу.\n\n"
+            "Подписка на @neur_ai_pub даёт доступ к новостям и обновлениям NEUR AI.\n\n"
+            "Возвращайся к общению!",
+            reply_markup=back_to_menu_keyboard(),
+            parse_mode="HTML",
+        )
+    else:
+        await call.answer("Бонус уже был получен ранее.", show_alert=True)
 
 
 @router.message(ChatGPTState.chatting, F.text)
@@ -111,9 +144,9 @@ async def handle_chatgpt_photo(message: Message, state: FSMContext, bot: Bot):
         if limit_m == 0:
             await message.answer("🟢 <b>ChatGPT</b> недоступен на вашем тарифе.", reply_markup=upgrade_keyboard(), parse_mode="HTML")
         elif limit_d != -1 and used_d >= limit_d:
-            await message.answer(f"⏰ <b>Дневной лимит ChatGPT исчерпан</b> ({used_d}/{limit_d})\n\nУлучшите подписку:", reply_markup=upgrade_keyboard(), parse_mode="HTML")
+            await message.answer(f"⏰ <b>Дневной лимит ChatGPT исчерпан</b> ({used_d}/{limit_d}){_BONUS_TEXT}", reply_markup=channel_bonus_keyboard(), parse_mode="HTML")
         else:
-            await message.answer(f"⚠️ <b>Месячный лимит ChatGPT исчерпан</b> ({used_m}/{limit_m})\n\nУлучшите подписку:", reply_markup=upgrade_keyboard(), parse_mode="HTML")
+            await message.answer(f"⚠️ <b>Месячный лимит ChatGPT исчерпан</b> ({used_m}/{limit_m}){_BONUS_TEXT}", reply_markup=channel_bonus_keyboard(), parse_mode="HTML")
         return
 
     history = data.get("history", [])
@@ -131,7 +164,7 @@ async def handle_chatgpt_photo(message: Message, state: FSMContext, bot: Bot):
         ld = "∞" if limit_d == -1 else str(limit_d)
         footer = f"\n\n<i>🟢 {used_m}/{lm} мес · {used_d}/{ld} день</i>"
         await thinking_msg.delete()
-        await message.answer(escape(strip_markdown(response)) + footer, reply_markup=chat_controls_keyboard("chatgpt", mode), parse_mode="HTML")
+        await message.answer(markdown_to_html(response) + footer, reply_markup=chat_controls_keyboard("chatgpt", mode), parse_mode="HTML")
     except Exception as e:
         await log_usage(user_id, "chatgpt", 0, 0, False)
         await thinking_msg.delete()

@@ -8,8 +8,8 @@ from aiogram.types import (
 from database.crud import PLAN_STARS
 from modes import AI_MODES
 
-MODEL_EMOJI = {"chatgpt": "🟢", "claude": "🟣", "deepseek": "🔵"}
-MODEL_NAME  = {"chatgpt": "ChatGPT", "claude": "Claude", "deepseek": "DeepSeek"}
+MODEL_EMOJI = {"chatgpt": "🟢", "claude": "🟣"}
+MODEL_NAME  = {"chatgpt": "ChatGPT", "claude": "Claude"}
 
 
 # ─────────────────────────────────────────────
@@ -20,6 +20,7 @@ def bottom_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text="🤖 Выбрать нейросеть")],
             [KeyboardButton(text="📊 Мой профиль"),       KeyboardButton(text="💳 Тарифы")],
+            [KeyboardButton(text="💬 Поддержка")],
         ],
         resize_keyboard=True,
         persistent=True,
@@ -32,15 +33,22 @@ def bottom_keyboard() -> ReplyKeyboardMarkup:
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🟢 ChatGPT",  callback_data="ai:chatgpt"),
-            InlineKeyboardButton(text="🟣 Claude",   callback_data="ai:claude"),
-            InlineKeyboardButton(text="🔵 DeepSeek", callback_data="ai:deepseek"),
+            InlineKeyboardButton(text="🟢 ChatGPT", callback_data="ai:chatgpt"),
+            InlineKeyboardButton(text="🟣 Claude",  callback_data="ai:claude"),
         ],
         [
             InlineKeyboardButton(text="📊 Профиль", callback_data="profile"),
             InlineKeyboardButton(text="💳 Тарифы",  callback_data="plans"),
             InlineKeyboardButton(text="💾 Чаты",    callback_data="my_chats"),
         ],
+    ])
+
+
+def channel_bonus_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Подписаться на @neur_ai_pub", url="https://t.me/neur_ai_pub")],
+        [InlineKeyboardButton(text="✅ Я подписался — получить +10 запросов", callback_data="check_channel_sub")],
+        [InlineKeyboardButton(text="💳 Все тарифы", callback_data="plans")],
     ])
 
 

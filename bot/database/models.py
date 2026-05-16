@@ -22,6 +22,8 @@ class User(Base):
     referral_code: Mapped[Optional[str]] = mapped_column(String(32), unique=True, nullable=True)
     referred_by: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     bonus_requests: Mapped[int] = mapped_column(Integer, default=0)
+    channel_bonus_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_activity: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     subscriptions: Mapped[list["Subscription"]] = relationship(back_populates="user")
     usage_logs: Mapped[list["UsageLog"]] = relationship(back_populates="user")

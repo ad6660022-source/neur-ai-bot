@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from modes import AI_MODES
-from states import ChatGPTState, ClaudeState, DeepSeekState
+from states import ChatGPTState, ClaudeState
 from keyboards import mode_selection_keyboard, chat_controls_keyboard
 
 router = Router()
@@ -11,13 +11,11 @@ router = Router()
 MODEL_DISPLAY = {
     "chatgpt": "🟢 ChatGPT (GPT-4o)",
     "claude":  "🟣 Claude (Sonnet 4.6)",
-    "deepseek": "🔵 DeepSeek (V3)",
 }
 
 _STATE_MAP = {
-    "chatgpt":  ChatGPTState.chatting,
-    "claude":   ClaudeState.chatting,
-    "deepseek": DeepSeekState.chatting,
+    "chatgpt": ChatGPTState.chatting,
+    "claude":  ClaudeState.chatting,
 }
 
 
@@ -32,10 +30,7 @@ async def cb_start_chat(call: CallbackQuery):
         f"🤖 Стандартный — универсальный ответ\n"
         f"👨‍💻 Программист — код и технические объяснения\n"
         f"✍️ Копирайтер — тексты и маркетинг\n"
-        f"🎓 Учитель — простые объяснения с примерами\n"
-        f"🔬 Аналитик — структурированные выводы\n"
-        f"🎭 Творческий — нестандартные идеи\n"
-        f"📊 Бизнес — практичные советы с ROI",
+        f"🎓 Учитель — простые объяснения с примерами",
         reply_markup=mode_selection_keyboard(ai_key),
         parse_mode="HTML",
     )
@@ -52,7 +47,6 @@ async def cb_set_mode(call: CallbackQuery, state: FSMContext):
         await call.answer("Ошибка модели", show_alert=True)
         return
 
-    # Preserve existing history when changing mode mid-chat
     data = await state.get_data()
     history = data.get("history", [])
 

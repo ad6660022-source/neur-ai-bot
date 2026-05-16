@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from html import escape
 from aiogram import Router, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -31,9 +32,8 @@ async def cmd_admin(message: Message):
         f"👥 Пользователей: <b>{stats['users']}</b>\n"
         f"💳 Платных подписок: <b>{stats['paid_subs']}</b>\n"
         f"📊 Всего запросов: <b>{stats['total_requests']}</b>\n\n"
-        f"🟢 ChatGPT:  {stats['chatgpt_requests']}\n"
-        f"🟣 Claude:   {stats['claude_requests']}\n"
-        f"🔵 DeepSeek: {stats['deepseek_requests']}"
+        f"🟢 ChatGPT: {stats['chatgpt_requests']}\n"
+        f"🟣 Claude:  {stats['claude_requests']}"
     )
     await message.answer(text, reply_markup=admin_keyboard(), parse_mode="HTML")
 
@@ -49,9 +49,8 @@ async def cb_admin_stats(call: CallbackQuery):
         f"👥 Пользователей: <b>{stats['users']}</b>\n"
         f"💳 Платных подписок: <b>{stats['paid_subs']}</b>\n"
         f"📨 Всего запросов: <b>{stats['total_requests']}</b>\n\n"
-        f"🟢 ChatGPT:  {stats['chatgpt_requests']}\n"
-        f"🟣 Claude:   {stats['claude_requests']}\n"
-        f"🔵 DeepSeek: {stats['deepseek_requests']}"
+        f"🟢 ChatGPT: {stats['chatgpt_requests']}\n"
+        f"🟣 Claude:  {stats['claude_requests']}"
     )
     await call.message.edit_text(text, reply_markup=admin_keyboard(), parse_mode="HTML")
     await call.answer()
@@ -228,3 +227,29 @@ async def admin_broadcast_send(message: Message, state: FSMContext, bot: Bot):
         f"✅ <b>Рассылка завершена</b>\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}",
         reply_markup=admin_keyboard(), parse_mode="HTML",
     )
+
+
+# ─── Reply to support ─────────────────────────
+@router.message(Command("reply"))
+async def cmd_reply(message: Message, bot: Bot):
+    if not is_admin(message.from_user.id):
+        return
+    parts = message.text.split(None, 2)
+    if len(parts) < 3:
+        await message.answer("❌ Формат: /reply &lt;user_id&gt; &lt;текст&gt;", parse_mode="HTML")
+        return
+    try:
+        target_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Неверный user_id — должно быть число.")
+        return
+    reply_text = parts[2]
+    try:
+        await bot.send_message(
+            target_id,
+            f"💬 <b>Ответ от поддержки NEUR AI:</b>\n\n{escape(reply_text)}",
+            parse_mode="HTML",
+        )
+        await message.answer(f"✅ Ответ отправлен пользователю <code>{target_id}</code>.", parse_mode="HTML")
+    except Exception as e:
+        await message.answer(f"❌ Не удалось отправить: <code>{escape(str(e)[:200])}</code>", parse_mode="HTML")

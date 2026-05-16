@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram import Bot
 
@@ -7,6 +8,7 @@ from database.crud import (
     get_expiring_subscriptions,
     get_expired_trials,
     mark_expiry_notified,
+    get_inactive_users,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,11 +74,68 @@ def _renew_keyboard(plan: str):
 
 def _plans_keyboard():
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from database.crud import PLAN_STARS
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🥇 Pro — 799 ⭐",   callback_data="pay_stars:pro")],
-        [InlineKeyboardButton(text="💎 Ultra — 1499 ⭐", callback_data="pay_stars:ultra")],
+        [InlineKeyboardButton(text=f"🥇 Pro — {PLAN_STARS['pro']} ⭐",   callback_data="pay_stars:pro")],
+        [InlineKeyboardButton(text=f"💎 Ultra — {PLAN_STARS['ultra']} ⭐", callback_data="pay_stars:ultra")],
         [InlineKeyboardButton(text="💳 Все тарифы",     callback_data="plans")],
     ])
+
+
+async def _generate_ai_fact() -> str | None:
+    try:
+        from openai import AsyncOpenAI
+        from config import settings
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        today_str = date.today().strftime("%d %B %Y")
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Сегодня {today_str}. Напиши короткое (3-4 предложения) интересное сообщение "
+                    "об искусственном интеллекте или технологиях. "
+                    "Формат: начни с эмодзи, заголовок выдели <b>жирным</b> тегом HTML, "
+                    "затем 2-3 предложения текста. В конце добавь: "
+                    "'Попробуй NEUR AI — два лучших ИИ в одном боте!'"
+                ),
+            }],
+            max_tokens=250,
+            temperature=0.85,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.warning("Failed to generate AI fact: %s", e)
+        return None
+
+
+async def send_reengagement(bot: Bot):
+    """Daily: send AI-generated fact to users inactive for 2+ days."""
+    users = await get_inactive_users(days=2)
+    if not users:
+        logger.info("Re-engagement: no inactive users")
+        return
+
+    fact = await _generate_ai_fact()
+    if not fact:
+        logger.warning("Re-engagement: fact generation failed, skipping")
+        return
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🤖 Открыть NEUR AI", callback_data="back_to_menu")],
+        [InlineKeyboardButton(text="📢 Наш канал @neur_ai_pub", url="https://t.me/neur_ai_pub")],
+    ])
+
+    sent = failed = 0
+    for user in users[:500]:
+        try:
+            await bot.send_message(user.telegram_id, fact, parse_mode="HTML", reply_markup=kb)
+            sent += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05)
+    logger.info("Re-engagement sent: %d ok, %d failed", sent, failed)
 
 
 def setup_scheduler(bot: Bot):
@@ -94,6 +153,14 @@ def setup_scheduler(bot: Bot):
         hours=1,
         args=[bot],
         id="trial_notify",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        send_reengagement,
+        trigger="cron",
+        hour=12, minute=0,
+        args=[bot],
+        id="reengagement",
         replace_existing=True,
     )
     scheduler.start()

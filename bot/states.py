@@ -9,8 +9,8 @@ class ClaudeState(StatesGroup):
     chatting = State()
 
 
-class DeepSeekState(StatesGroup):
-    chatting = State()
+class SupportState(StatesGroup):
+    waiting_message = State()
 
 
 class SaveChatState(StatesGroup):

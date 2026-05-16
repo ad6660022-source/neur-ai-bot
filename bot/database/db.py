@@ -33,6 +33,9 @@ _MIGRATIONS = [
     # Image generation counters
     ("subscriptions", "daily_image_used", "INTEGER NOT NULL DEFAULT 0"),
     ("subscriptions", "image_used",       "INTEGER NOT NULL DEFAULT 0"),
+    # Channel bonus + activity tracking
+    ("users", "channel_bonus_used", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("users", "last_activity",      "TIMESTAMP"),
 ]
 
 

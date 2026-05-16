@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta
 from typing import Optional
-from sqlalchemy import select, update, or_, func
+from sqlalchemy import select, update, or_, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User, Subscription, UsageLog, SavedChat
 from database.db import async_session
@@ -10,17 +10,17 @@ from database.db import async_session
 #  Plan limits
 # ─────────────────────────────────────────────
 PLAN_LIMITS = {
-    "free":  {"chatgpt": 20,  "claude": 0,   "deepseek": 30},
-    "basic": {"chatgpt": 100, "claude": 0,   "deepseek": 150},
-    "pro":   {"chatgpt": 250, "claude": 60,  "deepseek": 400},
-    "ultra": {"chatgpt": 700, "claude": 180, "deepseek": 2000},
+    "free":  {"chatgpt": 20,  "claude": 0},
+    "basic": {"chatgpt": 100, "claude": 0},
+    "pro":   {"chatgpt": 250, "claude": 60},
+    "ultra": {"chatgpt": 700, "claude": 180},
 }
 
 DAILY_LIMITS = {
-    "free":  {"chatgpt": 5,   "claude": 0,  "deepseek": 10},
-    "basic": {"chatgpt": 20,  "claude": 0,  "deepseek": 40},
-    "pro":   {"chatgpt": 40,  "claude": 10, "deepseek": 80},
-    "ultra": {"chatgpt": 100, "claude": 25, "deepseek": 200},
+    "free":  {"chatgpt": 5,   "claude": 0},
+    "basic": {"chatgpt": 20,  "claude": 0},
+    "pro":   {"chatgpt": 40,  "claude": 10},
+    "ultra": {"chatgpt": 100, "claude": 25},
 }
 
 PLAN_PRICES = {
@@ -157,7 +157,6 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
             if sub.reset_at and (now - sub.reset_at).days >= 30:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
-                sub.deepseek_used = 0
                 sub.image_used = 0
                 sub.reset_at = now
                 changed = True
@@ -167,7 +166,6 @@ async def get_active_subscription(telegram_id: int) -> Optional[Subscription]:
             if sub.daily_reset_at and (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
                 sub.daily_claude_used = 0
-                sub.daily_deepseek_used = 0
                 sub.daily_reset_at = now
                 changed = True
             elif not sub.daily_reset_at:
@@ -251,40 +249,49 @@ async def check_and_increment_usage(
             if not sub:
                 return False, 0, 0, 0, 0
 
-            if (now - sub.reset_at).days >= 30:
+            if sub.reset_at and (now - sub.reset_at).days >= 30:
                 sub.chatgpt_used = 0
                 sub.claude_used = 0
-                sub.deepseek_used = 0
+                sub.reset_at = now
+            elif not sub.reset_at:
                 sub.reset_at = now
 
-            if (now - sub.daily_reset_at).total_seconds() >= 86400:
+            if sub.daily_reset_at and (now - sub.daily_reset_at).total_seconds() >= 86400:
                 sub.daily_chatgpt_used = 0
                 sub.daily_claude_used = 0
-                sub.daily_deepseek_used = 0
+                sub.daily_reset_at = now
+            elif not sub.daily_reset_at:
                 sub.daily_reset_at = now
 
-            monthly_limit = PLAN_LIMITS.get(sub.plan, PLAN_LIMITS["free"])[model]
-            daily_limit = DAILY_LIMITS.get(sub.plan, DAILY_LIMITS["free"])[model]
+            monthly_limit = PLAN_LIMITS.get(sub.plan, PLAN_LIMITS["free"]).get(model, 0)
+            daily_limit = DAILY_LIMITS.get(sub.plan, DAILY_LIMITS["free"]).get(model, 0)
             used_monthly = getattr(sub, field, 0)
             used_daily = getattr(sub, daily_field, 0)
 
             if monthly_limit == 0:
                 return False, used_monthly, monthly_limit, used_daily, daily_limit
-            if monthly_limit != -1 and used_monthly >= monthly_limit:
-                return False, used_monthly, monthly_limit, used_daily, daily_limit
-            if daily_limit != -1 and used_daily >= daily_limit:
-                return False, used_monthly, monthly_limit, used_daily, daily_limit
 
-            # Consume bonus requests first (from referrals)
             user_res = await session.execute(
                 select(User).where(User.telegram_id == telegram_id).with_for_update()
             )
             user = user_res.scalar_one_or_none()
-            if user and user.bonus_requests > 0:
-                user.bonus_requests -= 1
+            has_bonus = user is not None and user.bonus_requests > 0
+
+            over_monthly = monthly_limit != -1 and used_monthly >= monthly_limit
+            over_daily = daily_limit != -1 and used_daily >= daily_limit
+
+            if over_monthly or over_daily:
+                if has_bonus:
+                    user.bonus_requests -= 1
+                    if user:
+                        user.last_activity = now
+                    return True, used_monthly, monthly_limit, used_daily, daily_limit
+                return False, used_monthly, monthly_limit, used_daily, daily_limit
 
             setattr(sub, field, used_monthly + 1)
             setattr(sub, daily_field, used_daily + 1)
+            if user:
+                user.last_activity = now
             return True, used_monthly + 1, monthly_limit, used_daily + 1, daily_limit
 
 
@@ -341,6 +348,21 @@ async def check_and_increment_image(telegram_id: int) -> tuple[bool, int, int, s
                     return False, used, limit, "день"
                 sub.daily_image_used = used + 1
                 return True, used + 1, limit, "день"
+
+
+async def check_and_grant_channel_bonus(telegram_id: int) -> bool:
+    """Grant +10 ChatGPT bonus requests for subscribing to the channel. One-time only."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user or user.channel_bonus_used:
+            return False
+        user.channel_bonus_used = True
+        user.bonus_requests = (user.bonus_requests or 0) + 10
+        await session.commit()
+        return True
 
 
 async def log_usage(
@@ -467,6 +489,22 @@ async def get_expired_trials() -> list[Subscription]:
 # ─────────────────────────────────────────────
 #  Admin statistics
 # ─────────────────────────────────────────────
+async def get_inactive_users(days: int = 2) -> list[User]:
+    """Users who haven't made an AI request in `days` days."""
+    async with async_session() as session:
+        threshold = datetime.utcnow() - timedelta(days=days)
+        result = await session.execute(
+            select(User).where(
+                User.is_banned == False,
+                or_(
+                    and_(User.last_activity.isnot(None), User.last_activity < threshold),
+                    and_(User.last_activity.is_(None), User.created_at < threshold),
+                ),
+            )
+        )
+        return result.scalars().all()
+
+
 async def get_monthly_user_count() -> int:
     async with async_session() as session:
         now = datetime.utcnow()
@@ -487,9 +525,6 @@ async def get_stats() -> dict:
         claude_count = (await session.execute(
             select(func.count(UsageLog.id)).where(UsageLog.ai_model == "claude")
         )).scalar()
-        deepseek_count = (await session.execute(
-            select(func.count(UsageLog.id)).where(UsageLog.ai_model == "deepseek")
-        )).scalar()
         paid_subs = (await session.execute(
             select(func.count(Subscription.id))
             .where(Subscription.is_active == True, Subscription.plan != "free")
@@ -499,6 +534,5 @@ async def get_stats() -> dict:
             "total_requests": log_count,
             "chatgpt_requests": chatgpt_count,
             "claude_requests": claude_count,
-            "deepseek_requests": deepseek_count,
             "paid_subs": paid_subs,
         }

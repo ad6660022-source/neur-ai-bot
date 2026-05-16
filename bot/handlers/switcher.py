@@ -3,22 +3,20 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from modes import AI_MODES
-from states import ChatGPTState, ClaudeState, DeepSeekState
+from states import ChatGPTState, ClaudeState
 from keyboards import chat_controls_keyboard, back_to_menu_keyboard, main_menu_keyboard
 from database.crud import get_monthly_user_count
 
 router = Router()
 
 _STATE_MAP = {
-    "chatgpt":  ChatGPTState.chatting,
-    "claude":   ClaudeState.chatting,
-    "deepseek": DeepSeekState.chatting,
+    "chatgpt": ChatGPTState.chatting,
+    "claude":  ClaudeState.chatting,
 }
 
 MODEL_DISPLAY = {
-    "chatgpt":  "🟢 ChatGPT",
-    "claude":   "🟣 Claude",
-    "deepseek": "🔵 DeepSeek",
+    "chatgpt": "🟢 ChatGPT",
+    "claude":  "🟣 Claude",
 }
 
 
@@ -64,7 +62,8 @@ async def cb_stop_chat(call: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(lambda c: c.data == "back_to_menu")
-async def cb_back_to_menu(call: CallbackQuery):
+async def cb_back_to_menu(call: CallbackQuery, state: FSMContext):
+    await state.clear()
     from texts import get_ai_selection_text
     monthly_users = await get_monthly_user_count()
     await call.message.edit_text(

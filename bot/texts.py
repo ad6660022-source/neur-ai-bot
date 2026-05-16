@@ -22,14 +22,6 @@ AI_DESCRIPTIONS = {
             "отладке кода, архитектуре систем и технических объяснениях."
         ),
     },
-    "deepseek": {
-        "name": "DeepSeek", "model": "V3", "emoji": "🔵",
-        "tagline": "Скоростной и технический",
-        "description": (
-            "Передовая модель от DeepSeek. "
-            "Специализируется на математике, логике и программировании."
-        ),
-    },
 }
 
 
@@ -45,9 +37,7 @@ def get_welcome_text(first_name: str, is_new: bool = False) -> str:
         f"{trial_block}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🟢 <b>ChatGPT</b> (GPT-4o) — универсальный\n"
-        f"🟣 <b>Claude</b> (Sonnet 4.6) — кодинг\n"
-        f"🔵 <b>DeepSeek</b> (V3) — технический\n"
-        f"🎨 <b>DALL-E 3</b> — генерация изображений\n\n"
+        f"🟣 <b>Claude</b> (Sonnet 4.6) — кодинг\n\n"
         f"🎙 Голосовые сообщения поддерживаются\n"
         f"💾 Сохраняй и загружай диалоги\n"
         f"🔄 Переключай нейросети прямо в чате\n\n"
@@ -74,10 +64,10 @@ def get_ai_selection_text(monthly_users: int = 0) -> str:
 def get_plans_text() -> str:
     text = "💳 <b>Тарифные планы NEUR AI</b>\n\n"
     plans_info = {
-        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 20/мес · 5/день", "🔵 DeepSeek: 30/мес · 10/день", "🟣 Claude: недоступен", "💾 Сохранение чатов: нет"]},
-        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🔵 DeepSeek: 150/мес · 40/день", "🟣 Claude: недоступен", "💾 Сохранение чатов: 5"]},
-        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 250/мес · 40/день", "🟣 Claude: 60/мес · 10/день", "🔵 DeepSeek: 400/мес · 80/день", "💾 Сохранение чатов: 30"]},
-        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 700/мес · 100/день", "🟣 Claude: 180/мес · 25/день", "🔵 DeepSeek: 2000/мес · 200/день", "💾 Сохранение чатов: ∞"]},
+        "free":  {"name": "Бесплатный",  "price": "0",                        "features": ["🟢 ChatGPT: 20/мес · 5/день", "🟣 Claude: недоступен", "💾 Сохранение чатов: нет"]},
+        "basic": {"name": "Basic",        "price": f"{PLAN_STARS['basic']} ⭐", "features": ["🟢 ChatGPT: 100/мес · 20/день", "🟣 Claude: недоступен", "💾 Сохранение чатов: 5"]},
+        "pro":   {"name": "Pro",          "price": f"{PLAN_STARS['pro']} ⭐",   "features": ["🟢 ChatGPT: 250/мес · 40/день", "🟣 Claude: 60/мес · 10/день", "💾 Сохранение чатов: 30"]},
+        "ultra": {"name": "Ultra",        "price": f"{PLAN_STARS['ultra']} ⭐", "features": ["🟢 ChatGPT: 700/мес · 100/день", "🟣 Claude: 180/мес · 25/день", "💾 Сохранение чатов: ∞"]},
     }
     for plan_key, plan in plans_info.items():
         emoji = PLAN_EMOJI.get(plan_key, "")
@@ -114,8 +104,7 @@ def get_usage_text(sub, user=None) -> str:
         f"📊 <b>Ваш профиль</b>\n\n"
         f"{emoji} Тариф: <b>{plan.upper()}</b>{badge}{expires_str}\n\n"
         f"<b>Запросы (месяц / сегодня):</b>\n"
-        f"🟢 ChatGPT:  {fmt(sub.chatgpt_used, lm['chatgpt'])} мес · {fmt(sub.daily_chatgpt_used, ld['chatgpt'])} день\n"
-        f"🟣 Claude:   {fmt(sub.claude_used, lm['claude'])} мес · {fmt(sub.daily_claude_used, ld['claude'])} день\n"
-        f"🔵 DeepSeek: {fmt(sub.deepseek_used, lm['deepseek'])} мес · {fmt(sub.daily_deepseek_used, ld['deepseek'])} день\n\n"
+        f"🟢 ChatGPT: {fmt(sub.chatgpt_used, lm['chatgpt'])} мес · {fmt(sub.daily_chatgpt_used, ld['chatgpt'])} день\n"
+        f"🟣 Claude:  {fmt(sub.claude_used, lm['claude'])} мес · {fmt(sub.daily_claude_used, ld['claude'])} день\n\n"
         f"🔄 Счётчики: месяц — раз в 30 дней, день — ежедневно"
     )
