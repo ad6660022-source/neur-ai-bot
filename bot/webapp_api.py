@@ -89,26 +89,33 @@ async def api_me(request: web.Request):
     sub = await get_active_subscription(uid)
     user = await get_user(uid)
 
+    first_name = ""
+    if user:
+        first_name = user.first_name or ""
+
     if not sub:
-        return _ok({
+        return _ok({"user": {
             "user_id": uid,
+            "first_name": first_name,
             "plan": "free",
             "is_trial": False,
             "bonus_requests": 0,
+            "subscription_end": None,
             "usage": {
                 "chatgpt": {"used_monthly": 0, "limit_monthly": 20, "used_daily": 0, "limit_daily": 5},
                 "claude":  {"used_monthly": 0, "limit_monthly": 0,  "used_daily": 0, "limit_daily": 0},
             },
-        })
+        }})
 
     lm = PLAN_LIMITS.get(sub.plan, PLAN_LIMITS["free"])
     ld = DAILY_LIMITS.get(sub.plan, DAILY_LIMITS["free"])
 
-    return _ok({
+    return _ok({"user": {
         "user_id": uid,
+        "first_name": first_name,
         "plan": sub.plan,
         "is_trial": bool(sub.is_trial),
-        "expires_at": sub.expires_at,
+        "subscription_end": sub.expires_at,
         "bonus_requests": user.bonus_requests if user else 0,
         "usage": {
             "chatgpt": {
@@ -120,7 +127,7 @@ async def api_me(request: web.Request):
                 "used_daily": sub.daily_claude_used, "limit_daily": ld["claude"],
             },
         },
-    })
+    }})
 
 
 async def api_chat(request: web.Request):
@@ -182,10 +189,10 @@ async def api_chats_list(request: web.Request):
     if not uid:
         return _err("auth_failed", 401)
     chats = await get_saved_chats(uid)
-    return _ok([{
+    return _ok({"chats": [{
         "id": c.id, "name": c.name, "model": c.model,
         "mode": c.mode, "created_at": c.created_at,
-    } for c in chats])
+    } for c in chats]})
 
 
 async def api_chat_load(request: web.Request):
@@ -198,7 +205,7 @@ async def api_chat_load(request: web.Request):
         return _err("not_found", 404)
     return _ok({
         "id": chat.id, "name": chat.name, "model": chat.model,
-        "mode": chat.mode, "history": json.loads(chat.history),
+        "mode": chat.mode, "messages": json.loads(chat.history),
     })
 
 
