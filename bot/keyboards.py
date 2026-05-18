@@ -44,6 +44,9 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="💾 Чаты",    callback_data="my_chats"),
         ],
     ]
+    rows.append([
+        InlineKeyboardButton(text="📢 Наше сообщество", url="https://t.me/neur_ai_pub"),
+    ])
     if settings.WEBAPP_URL:
         rows.append([
             InlineKeyboardButton(text="🌐 Открыть Mini App", web_app=WebAppInfo(url=settings.WEBAPP_URL)),

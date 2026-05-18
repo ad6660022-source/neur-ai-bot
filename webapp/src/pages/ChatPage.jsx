@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { api, markdownToHtml } from '../api.js'
+import { api, parseMarkdown } from '../api.js'
 
 const MODELS = [
   { key: 'chatgpt', label: 'ChatGPT', emoji: '🟢' },
   { key: 'claude',  label: 'Claude',  emoji: '🟣' },
 ]
+
+const RECENT_KEY = 'neur_recent_chat'
 
 export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat }) {
   const [model,    setModel]    = useState('chatgpt')
@@ -13,16 +15,28 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
   const [toast,    setToast]    = useState(null)
-  const bottomRef  = useRef(null)
+  const bottomRef   = useRef(null)
   const textareaRef = useRef(null)
 
+  // Restore from loadedChat (history) or localStorage (auto-save)
   useEffect(() => {
     if (loadedChat) {
       setModel(loadedChat.model || 'chatgpt')
       setMessages(loadedChat.messages || [])
       setError(null)
       clearLoadedChat?.()
+      return
     }
+    try {
+      const raw = localStorage.getItem(RECENT_KEY)
+      if (raw) {
+        const { model: m, messages: msgs } = JSON.parse(raw)
+        if (Array.isArray(msgs) && msgs.length > 0) {
+          setModel(m || 'chatgpt')
+          setMessages(msgs)
+        }
+      }
+    } catch {}
   }, [loadedChat])
 
   useEffect(() => {
@@ -36,10 +50,19 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
     setTimeout(() => setToast(null), 2500)
   }
 
+  const autoSave = (mdl, msgs) => {
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify({ model: mdl, messages: msgs }))
+    } catch {}
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
     setInput('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     setError(null)
 
     const userMsg = { role: 'user', content: text }
@@ -49,7 +72,9 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
 
     try {
       const data = await api.chat({ model, messages: newHistory, mode: 'default' })
-      setMessages([...newHistory, { role: 'assistant', content: data.response }])
+      const updated = [...newHistory, { role: 'assistant', content: data.response }]
+      setMessages(updated)
+      autoSave(model, updated)
     } catch (err) {
       if (err.error === 'limit_reached') {
         setError({ type: 'limit', msg: err.message })
@@ -58,7 +83,7 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
       } else {
         setError({ type: 'error', msg: err.message || 'Ошибка. Попробуй ещё раз.' })
       }
-      setMessages(newHistory.slice(0, -1)) // revert
+      setMessages(newHistory.slice(0, -1))
     } finally {
       setLoading(false)
     }
@@ -71,9 +96,16 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
     }
   }
 
+  const handleInput = (e) => {
+    setInput(e.target.value)
+    e.target.style.height = 'auto'
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+  }
+
   const clearChat = () => {
     setMessages([])
     setError(null)
+    try { localStorage.removeItem(RECENT_KEY) } catch {}
     showToast('Чат очищен')
   }
 
@@ -86,6 +118,12 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
     } catch {
       showToast('Ошибка при сохранении')
     }
+  }
+
+  const switchModel = (key) => {
+    setModel(key)
+    setError(null)
+    autoSave(key, messages)
   }
 
   const modelLocked = model === 'claude' && (user?.usage?.claude?.limit_monthly === 0)
@@ -114,7 +152,7 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
           <button
             key={m.key}
             className={`model-tab${model === m.key ? ' active' : ''}`}
-            onClick={() => { setModel(m.key); setError(null) }}
+            onClick={() => switchModel(m.key)}
           >
             {m.emoji} {m.label}
           </button>
@@ -147,7 +185,7 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
         </div>
       )}
 
-      {/* Messages */}
+      {/* Empty state */}
       {messages.length === 0 && !error && (
         <div className="empty">
           <div className="empty-icon">{MODELS.find(m => m.key === model)?.emoji}</div>
@@ -170,7 +208,6 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — extra padding for the fixed input bar */}
       <div style={{ height: 70 }} />
 
       {/* Fixed input bar */}
@@ -180,7 +217,7 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
           className="chat-textarea"
           placeholder="Напиши сообщение..."
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={handleInput}
           onKeyDown={handleKey}
           rows={1}
           disabled={loading || modelLocked}
@@ -195,15 +232,44 @@ export default function ChatPage({ user, setPage, loadedChat, clearLoadedChat })
   )
 }
 
+// ─── Message component ────────────────────────────────────────────────────
+
 function Message({ msg }) {
   const isUser = msg.role === 'user'
-  const html = isUser ? null : markdownToHtml(msg.content)
+  if (isUser) {
+    return <div className="message user">{msg.content}</div>
+  }
+  const parts = parseMarkdown(msg.content)
   return (
-    <div className={`message ${isUser ? 'user' : 'ai'}`}>
-      {isUser
-        ? msg.content
-        : <span dangerouslySetInnerHTML={{ __html: html }} />
-      }
+    <div className="message ai">
+      {parts.map((part, i) =>
+        part.type === 'code'
+          ? <CodeBlock key={i} code={part.code} lang={part.lang} />
+          : <span key={i} dangerouslySetInnerHTML={{ __html: part.html }} />
+      )}
+    </div>
+  )
+}
+
+function CodeBlock({ code, lang }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = () => {
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  return (
+    <div className="code-block">
+      <div className="code-header">
+        {lang && <span className="code-lang">{lang}</span>}
+        <button className="copy-btn" onClick={copy}>
+          {copied ? '✓ Скопировано' : 'Копировать'}
+        </button>
+      </div>
+      <pre><code>{code}</code></pre>
     </div>
   )
 }

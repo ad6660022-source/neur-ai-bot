@@ -263,6 +263,61 @@ body {
   border-radius: 4px;
 }
 
+/* ─── Code block with copy button ─── */
+.code-block {
+  margin: 8px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.35);
+  width: 100%;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 12px;
+  background: rgba(0,0,0,0.2);
+  min-height: 28px;
+}
+
+.code-lang {
+  color: var(--hint);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  color: var(--hint);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+
+.copy-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+.code-block pre {
+  margin: 0;
+  padding: 10px 14px;
+  overflow-x: auto;
+  font-size: 13px;
+  background: transparent;
+  border-radius: 0;
+  white-space: pre;
+}
+
+.code-block code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  white-space: pre;
+}
+
 /* ─── Chat input ─── */
 .chat-input-area {
   position: fixed;
