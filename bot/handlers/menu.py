@@ -5,6 +5,7 @@ from aiogram.types import Message, CallbackQuery
 from keyboards import main_menu_keyboard, ai_info_keyboard, bottom_keyboard
 from texts import get_ai_selection_text, AI_DESCRIPTIONS
 from database.crud import get_monthly_user_count
+from config import settings
 
 router = Router()
 
@@ -23,7 +24,8 @@ async def cmd_image_disabled(message: Message):
 @router.message(Command("menu"))
 @router.message(F.text == "🤖 Выбрать нейросеть")
 async def cmd_menu(message: Message):
-    monthly_users = await get_monthly_user_count()
+    is_admin = message.from_user.id in settings.admin_list
+    monthly_users = await get_monthly_user_count() if is_admin else 0
     await message.answer(
         get_ai_selection_text(monthly_users),
         reply_markup=main_menu_keyboard(),

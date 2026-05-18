@@ -5,6 +5,7 @@ from aiogram.types import Message, CallbackQuery
 from database.crud import get_or_create_user, get_active_subscription, get_user, grant_trial, get_monthly_user_count
 from keyboards import main_menu_keyboard, back_to_menu_keyboard, bottom_keyboard
 from texts import get_ai_selection_text, get_usage_text
+from config import settings
 
 router = Router()
 
@@ -22,7 +23,8 @@ async def cmd_start(message: Message):
     if is_new:
         await grant_trial(message.from_user.id)
 
-    monthly_users = await get_monthly_user_count()
+    is_admin = message.from_user.id in settings.admin_list
+    monthly_users = await get_monthly_user_count() if is_admin else 0
     await message.answer(
         get_ai_selection_text(monthly_users),
         reply_markup=main_menu_keyboard(),
